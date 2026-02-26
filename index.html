@@ -20,16 +20,15 @@
     <button class="funnel-tab" onclick="loadFunnel('BOFU')">BOFU</button>
   </div>
 </header>
+
 <div class="wizard-nav">
-  <button onclick="prevStep()">Anterior</button>
+  <button type="button" onclick="prevStep()">Anterior</button>
   <span id="wizard-progress"></span>
-  <button onclick="nextStep()">Siguiente</button>
+  <button type="button" onclick="nextStep()">Siguiente</button>
 </div>
+
 <div id="auth" class="auth-bar"></div>
-
-<div id="content">
-
-</div>
+<div id="content"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -40,8 +39,7 @@
 
 <script defer src="js/tofu.js"></script>
 <script defer src="js/estrategico.js"></script>
- <script defer src="js/core.js"></script>
-
+<script defer src="js/core.js"></script>
 
 <script>
   window.addEventListener("DOMContentLoaded", async () => {
@@ -51,43 +49,9 @@
   });
 </script>
 
-<script>
-  const checkboxes = document.querySelectorAll('input[name="P19[]"]');
-  const bloqueP20 = document.getElementById("bloqueP20");
-  const opcionesP20 = document.getElementById("opcionesP20");
-
-  function actualizarP20() {
-    const seleccionados = [...checkboxes].filter(c => c.checked);
-    opcionesP20.innerHTML = "";
-
-    if (seleccionados.length === 0) {
-      bloqueP20.style.display = "none";
-      return;
-    }
-
-    bloqueP20.style.display = "";
-
-    seleccionados.forEach(c => {
-      const texto = c.parentElement.textContent.trim();
-
-      opcionesP20.insertAdjacentHTML("beforeend",
-        `<label>
-           <input type="radio" name="P20" value="${c.value}">
-           ${texto}
-         </label><br>`
-      );
-    });
-  }
-
-  checkboxes.forEach(c => c.addEventListener("change", actualizarP20));
-</script>
-
 <footer class="app-footer">
   © 2026 Rafael Viglierchio. Uso interno.
 </footer>
 
 </body>
 </html>
-
-
-
