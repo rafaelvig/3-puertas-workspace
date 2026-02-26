@@ -1,14 +1,17 @@
 /* core.js - Funnel Workspace (TOFU/MOFU/BOFU)
    - Acordeón por sección (1/2/3…)
-   - Adjuntos por línea (Agregar / Archivos)
+   - Adjuntos por línea (Links + Repositorio)
    - Progreso por sección (x/y) y por bloque (x/y)
    - Tabs activos
 */
-// core.js (arriba de todo)
+
+// =====================
+// Supabase init
+// =====================
 window.__sb = window.__sb || window.supabase.createClient(
   window.SUPABASE_URL,
   window.SUPABASE_ANON_KEY,
-    {
+  {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
@@ -17,9 +20,18 @@ window.__sb = window.__sb || window.supabase.createClient(
   }
 );
 const sb = window.__sb; // usá sb en vez de supabase
-const BUCKET = "workspace-files";
-async function uploadFileToSection(file, { workspace_id, stage, section_key }) {
 
+if (!sb || !sb.auth) {
+  console.error("Supabase client not ready", { sb, url: window.SUPABASE_URL });
+}
+
+const BUCKET = "workspace-files";
+const WORKSPACE_ID = "dm"; // temporal fijo
+
+// =====================
+// Repositorio (Storage + tabla files)
+// =====================
+async function uploadFileToSection(file, { workspace_id, stage, section_key }) {
   const safeName = file.name.replace(/[^\w.\-]+/g, "_");
   const path = `${workspace_id}/${stage}/${section_key}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
 
@@ -33,6 +45,9 @@ async function uploadFileToSection(file, { workspace_id, stage, section_key }) {
     return;
   }
 
+  const { data: userRes } = await sb.auth.getUser();
+  const userId = userRes?.user?.id || null;
+
   const { error: dbError } = await sb.from("files").insert([{
     workspace_id,
     stage,
@@ -40,7 +55,8 @@ async function uploadFileToSection(file, { workspace_id, stage, section_key }) {
     path,
     original_name: file.name,
     mime_type: file.type,
-    size_bytes: file.size
+    size_bytes: file.size,
+    uploaded_by: userId
   }]);
 
   if (dbError) {
@@ -48,16 +64,44 @@ async function uploadFileToSection(file, { workspace_id, stage, section_key }) {
     alert("Archivo subido pero error guardando registro");
   }
 }
-if (!sb || !sb.auth) {
-  console.error("Supabase client not ready", { sb, url: window.SUPABASE_URL });
+
+async function listFiles(section_key, workspace_id) {
+  const { data, error } = await sb
+    .from("files")
+    .select("id, path, original_name, mime_type, size_bytes, created_at")
+    .eq("section_key", section_key)
+    .eq("workspace_id", workspace_id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+  return data || [];
 }
 
+async function openFile(path) {
+  const { data, error } = await sb.storage
+    .from(BUCKET)
+    .createSignedUrl(path, 60 * 10);
+
+  if (error) {
+    console.error(error);
+    alert("No se pudo abrir archivo");
+    return;
+  }
+
+  window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+}
+
+// =====================
+// Auth bar
+// =====================
 async function renderAuthBar() {
   const authEl = document.getElementById("auth");
   if (!authEl) return;
 
-
-    if (!sb || !sb.auth) {
+  if (!sb || !sb.auth) {
     authEl.innerHTML = `<span style="color:#b00">Auth no disponible (cliente Supabase no inicializado)</span>`;
     return;
   }
@@ -66,10 +110,9 @@ async function renderAuthBar() {
   const session = data.session;
 
   authEl.innerHTML = "";
-
   window.FUNNELS = window.FUNNELS || {};
 
-  // --------- NO LOGUEADO: MAGIC LINK ----------
+  // NO LOGUEADO: MAGIC LINK
   if (!session) {
     const email = document.createElement("input");
     email.placeholder = "Email";
@@ -94,9 +137,7 @@ async function renderAuthBar() {
       msg.textContent = "Enviando link...";
       const { error } = await sb.auth.signInWithOtp({
         email: to,
-        options: {
-          emailRedirectTo: window.location.href
-        }
+        options: { emailRedirectTo: window.location.href }
       });
 
       if (error) {
@@ -113,7 +154,7 @@ async function renderAuthBar() {
     return;
   }
 
-  // --------- LOGUEADO ----------
+  // LOGUEADO
   const who = document.createElement("div");
   who.className = "auth-who";
   who.textContent = session.user.email;
@@ -133,12 +174,8 @@ async function renderAuthBar() {
   authEl.appendChild(out);
 }
 
-    
-
-
-
 // =====================
-// Storage (Supabase Postgres - links compartidos)
+// Links (section_links) - cache
 // =====================
 
 // Cache en memoria: section_key -> [ {id,label,href} ]
@@ -218,10 +255,7 @@ async function addAttachment(stage, key, att) {
 }
 
 async function updateAttachment(key, att) {
-  const payload = {
-    url: att.href,
-    title: att.label || null
-  };
+  const payload = { url: att.href, title: att.label || null };
 
   const { error } = await sb
     .from("section_links")
@@ -252,10 +286,9 @@ function getItemKey(funnelName, blockTitle, sectionTitle, lineText) {
   return `${funnelName}||${blockTitle}||${sectionTitle}||${lineText}`;
 }
 
-
-// ==========
+// =====================
 // UI helpers
-// ==========
+// =====================
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -270,10 +303,6 @@ function makeBtn(label, onClick, className = "btn") {
   b.textContent = label;
   b.addEventListener("click", onClick);
   return b;
-}
-
-function uid() {
-  return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
 
 function promptAddAttachment() {
@@ -297,7 +326,7 @@ function promptEditAttachment(att) {
 }
 
 // ==================
-// Progress calculators
+// Progress calculators (links)
 // ==================
 function computeSectionProgress(funnelName, blockTitle, section) {
   const total = Array.isArray(section.items) ? section.items.length : 0;
@@ -337,35 +366,32 @@ function computeBlockProgress(funnelName, block) {
   return { done, total, status };
 }
 
-// ============
+// =====================
 // Main render
-// ============
+// =====================
 async function loadFunnel(name) {
+  await ensureStageLoaded(name);
 
-    await ensureStageLoaded(name);
+  // Tabs activos (match sin tildes)
+  const norm = (s) =>
+    (s || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
-  // Tabs activos
- const norm = (s) =>
-  (s || "")
-    .trim()
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // quita tildes
-
-document.querySelectorAll(".funnel-tab").forEach(btn => {
-  btn.classList.toggle("active", norm(btn.textContent) === norm(name))
+  document.querySelectorAll(".funnel-tab").forEach(btn => {
+    btn.classList.toggle("active", norm(btn.textContent) === norm(name));
   });
 
   const funnel = FUNNELS[name];
-  if (!funnel) {
-    const container = document.getElementById("content");
-    if (container) container.innerHTML = "";
-  await ensureStageLoaded(name);
-    return;
-  }
-
   const container = document.getElementById("content");
   if (!container) return;
+
+  if (!funnel) {
+    container.innerHTML = "";
+    return;
+  }
 
   container.innerHTML = "";
   container.appendChild(el("h1", null, name));
@@ -373,7 +399,7 @@ document.querySelectorAll(".funnel-tab").forEach(btn => {
   (funnel.blocks || []).forEach(block => {
     const blockEl = el("section", "block");
 
-    // Block title + progress
+    // Block title + progress (links)
     const blockProg = computeBlockProgress(name, block);
 
     const h2 = el("h2", "block-title");
@@ -390,62 +416,49 @@ document.querySelectorAll(".funnel-tab").forEach(btn => {
     // Sections
     (block.sections || []).forEach(section => {
       const sectionWrap = el("div", "section");
-      sectionWrap.classList.add("collapsed"); // arranca plegado
+      sectionWrap.classList.add("collapsed");
 
       const prog = computeSectionProgress(name, block.title, section);
 
-      // Header 1/2/3… (con adjuntos + progreso)
+      // Header
       const sectionLine = renderLineWithAttachments(
         name,
         block.title,
         section.title,
         section.title,
-        { isHeaderLine: true, progress: prog }
+        { isHeaderLine: true, progress: prog, sectionRef: section }
       );
       sectionLine.classList.add("accordion-header");
-  if (section.formUrl) {
-    const right = sectionLine.querySelector(".line-actions");
-    if (right) {
-      const btnForm = makeBtn("Abrir formulario", () => {
-        window.open(section.formUrl, "_blank", "noopener,noreferrer");
-      }, "btn btn-primary");
 
-      right.insertBefore(btnForm, right.firstChild);
-    }
-  }
+      // Form button (solo una vez)
+      if (section.formUrl) {
+        const right = sectionLine.querySelector(".line-actions");
+        if (right) {
+          const btnForm = makeBtn("Abrir formulario", () => {
+            window.open(section.formUrl, "_blank", "noopener,noreferrer");
+          }, "btn btn-primary");
+          right.insertBefore(btnForm, right.firstChild);
+        }
+      }
 
-
-       
-
-      // Body (plegable)
+      // Body
       const accordionBody = el("div", "accordion-body");
-
       const ul = el("ul", "items");
+
       (section.items || []).forEach(itemText => {
         const li = el("li", "item");
         li.appendChild(
-          renderLineWithAttachments(name, block.title, section.title, itemText)
+          renderLineWithAttachments(name, block.title, section.title, itemText, { sectionRef: section })
         );
         ul.appendChild(li);
       });
-       // Botón formulario en el header (si existe formUrl)
-if (section.formUrl) {
-  const right = sectionLine.querySelector(".line-actions");
-  const btnForm = makeBtn("Abrir formulario", () => {
-    window.open(section.formUrl, "_blank", "noopener,noreferrer");
-  }, "btn btn-primary");
-
-  // lo ponemos primero para que se vea antes que "Agregar archivo"
-  right.insertBefore(btnForm, right.firstChild);
-}
-
 
       accordionBody.appendChild(ul);
 
       sectionWrap.appendChild(sectionLine);
       sectionWrap.appendChild(accordionBody);
 
-      // Toggle acordeón (clic fuera de botones)
+      // Toggle acordeón
       sectionLine.addEventListener("click", (e) => {
         if (e.target.closest("button")) return;
         sectionWrap.classList.toggle("collapsed");
@@ -465,13 +478,12 @@ function renderLineWithAttachments(funnelName, blockTitle, sectionTitle, lineTex
   const row = el("div", opts.isHeaderLine ? "line-row line-row-header" : "line-row");
   row.dataset.funnelName = funnelName;
 
-
   const left = el("div", "line-text", lineText);
   row.appendChild(left);
 
   const right = el("div", "line-actions");
 
-  // Progress badge (solo headers 1/2/3…)
+  // Progress badge (solo headers)
   if (opts.isHeaderLine && opts.progress) {
     const p = opts.progress;
     const progressBadge = el(
@@ -484,31 +496,63 @@ function renderLineWithAttachments(funnelName, blockTitle, sectionTitle, lineTex
 
   const key = getItemKey(funnelName, blockTitle, sectionTitle, lineText);
 
-const btnAdd = makeBtn("Agregar archivo", async () => {
-  const att = promptAddAttachment();
-  if (!att) return;
+  // Agregar LINK externo (section_links)
+  const btnAdd = makeBtn("Agregar archivo", async () => {
+    const att = promptAddAttachment();
+    if (!att) return;
 
-  try {
-    await addAttachment(funnelName, key, att);
+    try {
+      await addAttachment(funnelName, key, att);
+      await refreshAttachmentsPanel(row, key);
+      refreshLineAttachmentsCount(row, key);
+      loadFunnel(funnelName);
+    } catch (e) {
+      alert(e?.message || String(e));
+    }
+  }, "btn btn-primary");
 
-    refreshAttachmentsPanel(row, key);
-    refreshLineAttachmentsCount(row, key);
+  // Subir ARCHIVO al repositorio
+  const inputFile = document.createElement("input");
+  inputFile.type = "file";
+  inputFile.style.display = "none";
 
-    // refrescar badges de progreso re-renderizando el funnel actual
-    loadFunnel(funnelName);
-  } catch (e) {
-    alert(e?.message || String(e));
-  }
-}, "btn btn-primary");
+  inputFile.onchange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
+    try {
+      await uploadFileToSection(file, {
+        workspace_id: WORKSPACE_ID,
+        stage: funnelName,
+        section_key: key
+      });
 
-  const btnFiles = makeBtn(getFilesLabel(key), () => {
-    toggleAttachmentsPanel(row, key);
+      const panel = row.querySelector(".attachments-panel");
+      if (panel && panel.style.display !== "none") {
+        await refreshAttachmentsPanel(row, key);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || String(err));
+    } finally {
+      inputFile.value = "";
+    }
+  };
+
+  const btnUploadRepo = makeBtn("Subir a repositorio", () => {
+    inputFile.click();
+  }, "btn btn-secondary");
+
+  // Panel de archivos (links + repo)
+  const btnFiles = makeBtn(getFilesLabel(key), async () => {
+    await toggleAttachmentsPanel(row, key);
     refreshLineAttachmentsCount(row, key);
   }, "btn btn-files");
 
   right.appendChild(btnAdd);
+  right.appendChild(btnUploadRepo);
   right.appendChild(btnFiles);
+  right.appendChild(inputFile);
   row.appendChild(right);
 
   const panel = el("div", "attachments-panel");
@@ -530,7 +574,7 @@ function refreshLineAttachmentsCount(row, key) {
   btn.textContent = getFilesLabel(key);
 }
 
-function toggleAttachmentsPanel(row, key) {
+async function toggleAttachmentsPanel(row, key) {
   const panel = row.querySelector(".attachments-panel");
   if (!panel) return;
 
@@ -540,86 +584,119 @@ function toggleAttachmentsPanel(row, key) {
     return;
   }
 
-  refreshAttachmentsPanel(row, key);
+  await refreshAttachmentsPanel(row, key);
   panel.style.display = "block";
 }
 
-function refreshAttachmentsPanel(row, key) {
+// Panel unificado: Links + Repositorio
+async function refreshAttachmentsPanel(row, key) {
   const panel = row.querySelector(".attachments-panel");
   if (!panel) return;
 
   panel.innerHTML = "";
 
-  const arr = getAttachments(key);
+  // Bloque Links
+  panel.appendChild(el("div", "attachments-subtitle", "Links"));
 
+  const arr = getAttachments(key);
   if (arr.length === 0) {
-    panel.appendChild(el("div", "attachments-empty", "Sin archivos adjuntos."));
+    panel.appendChild(el("div", "attachments-empty", "Sin links."));
+  } else {
+    const list = el("div", "attachments-list");
+
+    arr.forEach(att => {
+      const item = el("div", "attachment-item");
+
+      const link = document.createElement("a");
+      link.href = att.href;
+      link.textContent = att.label;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.className = "attachment-link";
+
+      const actions = el("div", "attachment-actions");
+
+      const btnOpen = makeBtn("Abrir", () => {
+        window.open(att.href, "_blank", "noopener,noreferrer");
+      }, "btn btn-small btn-open");
+
+      const btnEdit = makeBtn("Editar", async () => {
+        const updated = promptEditAttachment(att);
+        if (!updated) return;
+
+        try {
+          await updateAttachment(key, updated);
+          await refreshAttachmentsPanel(row, key);
+          refreshLineAttachmentsCount(row, key);
+          loadFunnel(row.dataset.funnelName || "TOFU");
+        } catch (e) {
+          alert(e?.message || String(e));
+        }
+      }, "btn btn-small");
+
+      const btnDel = makeBtn("Borrar", async () => {
+        const ok = confirm("¿Borrar este link?");
+        if (!ok) return;
+
+        try {
+          await deleteAttachment(key, att.id);
+          await refreshAttachmentsPanel(row, key);
+          refreshLineAttachmentsCount(row, key);
+          loadFunnel(row.dataset.funnelName || "TOFU");
+        } catch (e) {
+          alert(e?.message || String(e));
+        }
+      }, "btn btn-small btn-danger");
+
+      actions.appendChild(btnOpen);
+      actions.appendChild(btnEdit);
+      actions.appendChild(btnDel);
+
+      item.appendChild(link);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+
+    panel.appendChild(list);
+  }
+
+  // Bloque Repositorio
+  const repoTitle = el("div", "attachments-subtitle", "Repositorio");
+  repoTitle.style.marginTop = "12px";
+  panel.appendChild(repoTitle);
+
+  let repoFiles = [];
+  try {
+    repoFiles = await listFiles(key, WORKSPACE_ID);
+  } catch (e) {
+    console.error(e);
+  }
+
+  if (!repoFiles || repoFiles.length === 0) {
+    panel.appendChild(el("div", "attachments-empty", "Sin archivos en repositorio."));
     return;
   }
 
-  const list = el("div", "attachments-list");
+  const repoList = el("div", "attachments-list");
 
-  arr.forEach(att => {
+  repoFiles.forEach(f => {
     const item = el("div", "attachment-item");
 
-   const link = document.createElement("a");
-link.href = att.href;
-link.textContent = att.label;
-link.target = "_blank";
-link.rel = "noopener noreferrer";
-link.className = "attachment-link";
+    const name = el("div", "attachment-link", f.original_name);
 
-const actions = el("div", "attachment-actions");
+    const actions = el("div", "attachment-actions");
+    const btnView = makeBtn("Ver", () => openFile(f.path), "btn btn-small btn-open");
 
-// Botón Abrir (acción principal)
-const btnOpen = makeBtn("Abrir", () => {
-  window.open(att.href, "_blank", "noopener,noreferrer");
-}, "btn btn-small btn-open");
-
-    const btnEdit = makeBtn("Editar", async () => {
-      const updated = promptEditAttachment(att);
-      if (!updated) return;
-
-      try {
-        await updateAttachment(key, updated);
-
-        refreshAttachmentsPanel(row, key);
-        refreshLineAttachmentsCount(row, key);
-
-        // refresca progreso (0/5, etc.)
-        loadFunnel(row.dataset.funnelName || "TOFU");
-      } catch (e) {
-        alert(e?.message || String(e));
-      }
-    }, "btn btn-small"); 
-
- const btnDel = makeBtn("Borrar", async () => {
-      const ok = confirm("¿Borrar este archivo adjunto?");
-      if (!ok) return;
-
-      try {
-        await deleteAttachment(key, att.id);
-
-        refreshAttachmentsPanel(row, key);
-        refreshLineAttachmentsCount(row, key);
-        loadFunnel(row.dataset.funnelName || "TOFU");
-      } catch (e) {
-        alert(e?.message || String(e));
-      }
-    }, "btn btn-small btn-danger");
-
-  actions.appendChild(btnOpen);
-    actions.appendChild(btnEdit);
-    actions.appendChild(btnDel);
-
-    item.appendChild(link);
+    actions.appendChild(btnView);
+    item.appendChild(name);
     item.appendChild(actions);
 
-    list.appendChild(item);
+    repoList.appendChild(item);
   });
 
-  panel.appendChild(list);
+  panel.appendChild(repoList);
 }
+
 // Reaccionar a login/logout (Magic Link)
 sb.auth.onAuthStateChange(async (_event, _session) => {
   STORE_LOADED = false;
@@ -630,7 +707,6 @@ sb.auth.onAuthStateChange(async (_event, _session) => {
   await renderAuthBar();
   loadFunnel("TOFU");
 });
-
 
 // funciones que se llaman desde index.html o desde otros js
 window.renderAuthBar = renderAuthBar;
