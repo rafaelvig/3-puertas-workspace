@@ -24,9 +24,80 @@ const sb = window.__sb; // usá sb en vez de supabase
 if (!sb || !sb.auth) {
   console.error("Supabase client not ready", { sb, url: window.SUPABASE_URL });
 }
+/* =========================
+   WIZARD NAVIGATION ENGINE
+========================= */
+
+let currentStep = 0;
+let steps = [];
+
+function buildSteps(funnelKey) {
+  const funnel = FUNNELS[funnelKey];
+  if (!funnel) return;
+
+  steps = [];
+
+  funnel.blocks.forEach(block => {
+    block.sections.forEach(section => {
+      steps.push({
+        funnelKey,
+        blockTitle: block.title,
+        sectionKey: section.key
+      });
+    });
+  });
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    renderCurrentStep();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    renderCurrentStep();
+  }
+}
+
+function renderCurrentStep() {
+  const step = steps[currentStep];
+  if (!step) return;
+
+  loadSingleSection(step);
+  updateWizardProgress();
+}
+
+function loadSingleSection(step) {
+  const container = document.getElementById("content");
+  container.innerHTML = "";
+
+  const funnel = FUNNELS[step.funnelKey];
+  if (!funnel) return;
+
+  const block = funnel.blocks.find(b => b.title === step.blockTitle);
+  if (!block) return;
+
+  const section = block.sections.find(s => s.key === step.sectionKey);
+  if (!section) return;
+
+  renderSection(section, container); // reutilizamos tu renderer existente
+}
+
 
 const BUCKET = "workspace-files";
 const WORKSPACE_ID = "dm"; // temporal fijo
+
+function updateWizardProgress() {
+  const progress = document.getElementById("wizard-progress");
+  if (!progress) return;
+
+  const percent = Math.round(((currentStep + 1) / steps.length) * 100);
+  progress.innerText = `Progreso ${percent}%`;
+}
+
 
 // =====================
 // Repositorio (Storage + tabla files)
