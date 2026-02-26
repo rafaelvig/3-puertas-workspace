@@ -772,7 +772,6 @@ sb.auth.onAuthStateChange(async (_event, _session) => {
 // funciones que se llaman desde index.html o desde otros js
 window.renderAuthBar = renderAuthBar;
 window.ensureStoreLoaded = ensureStoreLoaded;
-window.loadFunnel = loadFunnel;
 
 
 /* =========================
