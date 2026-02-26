@@ -773,3 +773,127 @@ sb.auth.onAuthStateChange(async (_event, _session) => {
 window.renderAuthBar = renderAuthBar;
 window.ensureStoreLoaded = ensureStoreLoaded;
 window.loadFunnel = loadFunnel;
+
+
+/* =========================
+   WIZARD + loadFunnel GLOBAL
+   (pegar al FINAL de core.js)
+========================= */
+
+let __currentFunnelKey = null;
+let __currentStep = 0;
+let __steps = [];
+
+// Inline onclick necesita funciones en window
+window.loadFunnel = function loadFunnel(funnelKey) {
+  __currentFunnelKey = funnelKey;
+  __currentStep = 0;
+
+  if (typeof FUNNELS === "undefined" || !FUNNELS[funnelKey]) {
+    console.error("FUNNELS no existe o no contiene la key:", funnelKey);
+    return;
+  }
+
+  __steps = buildStepsFromFunnel(FUNNELS[funnelKey]);
+  if (!__steps.length) {
+    console.error("No pude construir steps (estructura inesperada). Revisar FUNNELS:", funnelKey);
+    return;
+  }
+
+  setActiveTabUI(funnelKey);
+  renderCurrentStep();
+};
+
+window.nextStep = function nextStep() {
+  if (__currentStep < __steps.length - 1) {
+    __currentStep++;
+    renderCurrentStep();
+  }
+};
+
+window.prevStep = function prevStep() {
+  if (__currentStep > 0) {
+    __currentStep--;
+    renderCurrentStep();
+  }
+};
+
+function buildStepsFromFunnel(funnelObj) {
+  // Esperado: funnelObj.blocks[] y cada block.sections[]
+  const steps = [];
+  const blocks = funnelObj.blocks || [];
+
+  blocks.forEach((block, bi) => {
+    const sections = block.sections || [];
+    sections.forEach((section, si) => {
+      // section.key es el identificador típico en tu data
+      steps.push({
+        blockIndex: bi,
+        sectionIndex: si,
+        blockTitle: block.title || block.name || `Bloque ${bi + 1}`,
+        sectionKey: section.key || section.section_key || null,
+        sectionObj: section
+      });
+    });
+  });
+
+  return steps;
+}
+
+function renderCurrentStep() {
+  const step = __steps[__currentStep];
+  if (!step) return;
+
+  // Limpio el contenedor principal
+  const content = document.getElementById("content");
+  if (!content) {
+    console.error("No existe #content en el DOM");
+    return;
+  }
+  content.innerHTML = "";
+
+  // Reutilizo tu renderer existente si está
+  // Caso 1: tenés una función renderSection(section, container)
+  if (typeof renderSection === "function") {
+    renderSection(step.sectionObj, content);
+  }
+  // Caso 2: tenés una función que renderiza por key
+  else if (typeof renderSectionByKey === "function" && step.sectionKey) {
+    renderSectionByKey(step.sectionKey, content);
+  }
+  // Caso 3: no encuentro renderer: lo dejo visible para debug
+  else {
+    content.innerHTML = `
+      <div style="padding:16px;border:1px solid #e5e7eb;background:#fff;border-radius:12px">
+        <div style="font-weight:600;margin-bottom:8px">No encontré renderer para la sección</div>
+        <div style="font-family:monospace;white-space:pre-wrap">${escapeHtml(JSON.stringify(step, null, 2))}</div>
+      </div>
+    `;
+  }
+
+  updateWizardProgressUI(step);
+}
+
+function updateWizardProgressUI(step) {
+  const el = document.getElementById("wizard-progress");
+  if (!el) return;
+
+  const pct = Math.round(((__currentStep + 1) / __steps.length) * 100);
+  el.textContent = `${pct}% · ${step.blockTitle} · ${__currentStep + 1}/${__steps.length}`;
+}
+
+function setActiveTabUI(funnelKey) {
+  // Marca visualmente la tab activa si querés
+  document.querySelectorAll(".funnel-tab").forEach(btn => {
+    btn.classList.toggle("active", (btn.textContent || "").trim().toUpperCase() === funnelKey.toUpperCase());
+  });
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
