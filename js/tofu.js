@@ -1,12 +1,15 @@
+// tofu.js
+// Define TOFU (no se modifican títulos ni items)
+
 window.FUNNELS = window.FUNNELS || {};
+
 window.FUNNELS.TOFU = {
-
   blocks: [
-
     {
       title: "A - Estrategia y Segmentación (25%)",
       sections: [
         {
+          key: "1. Definición de Buyer Persona.",
           title: "1. Definición de Buyer Persona.",
           items: [
             "a) Investigación de mercado y datos reales.",
@@ -17,6 +20,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "2. Claridad de la Propuesta de Valor.",
           title: "2. Claridad de la Propuesta de Valor.",
           items: [
             "a) Diferenciadores frente a la competencia.",
@@ -27,6 +31,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "3. Posicionamiento de marca.",
           title: "3. Posicionamiento de marca.",
           items: [
             "a) Mensaje central consistente.",
@@ -37,6 +42,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "4. Segmentación del mercado.",
           title: "4. Segmentación del mercado.",
           items: [
             "a) Segmentos por industria o tamaño.",
@@ -47,6 +53,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "5. Análisis de competencia.",
           title: "5. Análisis de competencia.",
           items: [
             "a) Benchmark de contenidos (qué publican y qué funciona).",
@@ -63,6 +70,7 @@ window.FUNNELS.TOFU = {
       title: "B - Contenido y Mensaje (20%)",
       sections: [
         {
+          key: "6. Calidad del contenido educativo.",
           title: "6. Calidad del contenido educativo.",
           items: [
             "a) Exactitud y veracidad de la información.",
@@ -73,6 +81,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "7. Relevancia temática (problemas del cliente).",
           title: "7. Relevancia temática (problemas del cliente).",
           items: [
             "a) Investigación de temas de dolor y retos del sector.",
@@ -83,6 +92,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "8. Tono y lenguaje adecuados.",
           title: "8. Tono y lenguaje adecuados.",
           items: [
             "a) Ajuste al nivel profesional del lector (técnico, ejecutivo, comprador).",
@@ -93,6 +103,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "9. Uso de storytelling (casos, ejemplos, emociones).",
           title: "9. Uso de storytelling (casos, ejemplos, emociones).",
           items: [
             "a) Uso de casos reales o anécdotas corporativas.",
@@ -109,6 +120,7 @@ window.FUNNELS.TOFU = {
       title: "C - Canales de Atracción (15%)",
       sections: [
         {
+          key: "10. SEO (optimización para buscadores).",
           title: "10. SEO (optimización para buscadores).",
           items: [
             "a) Investigación de palabras clave relevantes.",
@@ -119,6 +131,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "11. Publicidad digital (Ads).",
           title: "11. Publicidad digital (Ads).",
           items: [
             "a) Campañas en Google Ads (búsqueda e intención comercial).",
@@ -129,6 +142,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "12. Redes sociales profesionales (LinkedIn, YouTube, etc.).",
           title: "12. Redes sociales profesionales (LinkedIn, YouTube, etc.).",
           items: [
             "a) Calendario de publicaciones estratégicas.",
@@ -139,6 +153,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "13. Relaciones públicas o medios especializados.",
           title: "13. Relaciones públicas o medios especializados.",
           items: [
             "a) Artículos en medios del sector.",
@@ -155,6 +170,7 @@ window.FUNNELS.TOFU = {
       title: "D - Tecnología y Herramientas (15%)",
       sections: [
         {
+          key: "14. CRM y seguimiento de leads.",
           title: "14. CRM y seguimiento de leads.",
           items: [
             "a) Registro automático de contactos.",
@@ -165,6 +181,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "15. Integración con plataformas de automatización.",
           title: "15. Integración con plataformas de automatización.",
           items: [
             "a) Envío automático de emails según comportamiento.",
@@ -175,6 +192,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "16. Herramientas de analítica (Google Analytics, Tag Manager, Hotjar).",
           title: "16. Herramientas de analítica (Google Analytics, Tag Manager, Hotjar).",
           items: [
             "a) Configuración de objetivos (conversiones, tráfico, CTR).",
@@ -191,6 +209,7 @@ window.FUNNELS.TOFU = {
       title: "E - Creatividad y Diseño (10%)",
       sections: [
         {
+          key: "17. Diseño visual y UX del contenido.",
           title: "17. Diseño visual y UX del contenido.",
           items: [
             "a) Jerarquía visual clara (titulares, imágenes, espacios).",
@@ -201,6 +220,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "18. Claridad de CTAs (Call to Action).",
           title: "18. Claridad de CTAs (Call to Action).",
           items: [
             "a) Ubicación estratégica del CTA (visible, contextual).",
@@ -211,6 +231,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "19. Coherencia visual de la marca.",
           title: "19. Coherencia visual de la marca.",
           items: [
             "a) Guía de estilo definida (colores, tipografía, iconografía).",
@@ -227,6 +248,7 @@ window.FUNNELS.TOFU = {
       title: "F - Datos y Medición (15%)",
       sections: [
         {
+          key: "20. Definición de métricas ToFu.",
           title: "20. Definición de métricas ToFu.",
           items: [
             "a) Selección de métricas relevantes (alcance, impresiones, CTR, CPL, tasa de conversión).",
@@ -237,6 +259,7 @@ window.FUNNELS.TOFU = {
           ]
         },
         {
+          key: "21. Análisis de resultados y experimentación continua (A/B Testing).",
           title: "21. Análisis de resultados y experimentación continua (A/B Testing).",
           items: [
             "a) Creación de hipótesis basadas en datos.",
@@ -248,6 +271,5 @@ window.FUNNELS.TOFU = {
         }
       ]
     }
-
   ]
 };
