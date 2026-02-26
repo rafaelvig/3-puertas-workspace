@@ -430,16 +430,6 @@ async function loadFunnel(name) {
       );
       sectionLine.classList.add("accordion-header");
 
-      // Form button (solo una vez)
-      if (section.formUrl) {
-        const right = sectionLine.querySelector(".line-actions");
-        if (right) {
-          const btnForm = makeBtn("Abrir formulario", () => {
-            window.open(section.formUrl, "_blank", "noopener,noreferrer");
-          }, "btn btn-primary");
-          right.insertBefore(btnForm, right.firstChild);
-        }
-      }
 
       // Body
       const accordionBody = el("div", "accordion-body");
