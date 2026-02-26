@@ -20,7 +20,11 @@
     <button class="funnel-tab" onclick="loadFunnel('BOFU')">BOFU</button>
   </div>
 </header>
-
+<div class="wizard-nav">
+  <button onclick="prevStep()">Anterior</button>
+  <span id="wizard-progress"></span>
+  <button onclick="nextStep()">Siguiente</button>
+</div>
 <div id="auth" class="auth-bar"></div>
 
 <div id="content">
@@ -97,3 +101,4 @@
 
 </body>
 </html>
+
