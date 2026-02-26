@@ -783,6 +783,37 @@ let __currentFunnelKey = null;
 let __currentStep = 0;
 let __steps = [];
 
+function renderSection(section, container) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const h = document.createElement("h3");
+  h.textContent = section.title || "Sección";
+  card.appendChild(h);
+
+  // Botón formulario (si existe)
+  if (section.formUrl) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-primary";
+    btn.textContent = "Abrir formulario";
+    btn.onclick = () => window.open(section.formUrl, "_blank", "noopener,noreferrer");
+    card.appendChild(btn);
+  }
+
+  // Lista de items
+  if (Array.isArray(section.items) && section.items.length) {
+    const ul = document.createElement("ul");
+    section.items.forEach(t => {
+      const li = document.createElement("li");
+      li.textContent = t;
+      ul.appendChild(li);
+    });
+    card.appendChild(ul);
+  }
+
+  container.appendChild(card);
+}
 // Inline onclick necesita funciones en window
 window.loadFunnel = function loadFunnel(funnelKey) {
   __currentFunnelKey = funnelKey;
@@ -830,8 +861,8 @@ function buildStepsFromFunnel(funnelObj) {
         blockIndex: bi,
         sectionIndex: si,
         blockTitle: block.title || block.name || `Bloque ${bi + 1}`,
-        sectionKey: section.key || section.section_key || null,
-        sectionObj: section
+        sectionKey: section.key || section.section_key || section.title || null,   
+         sectionObj: section
       });
     });
   });
