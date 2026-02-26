@@ -17,7 +17,37 @@ window.__sb = window.__sb || window.supabase.createClient(
   }
 );
 const sb = window.__sb; // usá sb en vez de supabase
+const BUCKET = "workspace-files";
+async function uploadFileToSection(file, { workspace_id, stage, section_key }) {
 
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${workspace_id}/${stage}/${section_key}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+
+  const { error: uploadError } = await sb.storage
+    .from(BUCKET)
+    .upload(path, file, { contentType: file.type });
+
+  if (uploadError) {
+    console.error(uploadError);
+    alert("Error subiendo archivo");
+    return;
+  }
+
+  const { error: dbError } = await sb.from("files").insert([{
+    workspace_id,
+    stage,
+    section_key,
+    path,
+    original_name: file.name,
+    mime_type: file.type,
+    size_bytes: file.size
+  }]);
+
+  if (dbError) {
+    console.error(dbError);
+    alert("Archivo subido pero error guardando registro");
+  }
+}
 if (!sb || !sb.auth) {
   console.error("Supabase client not ready", { sb, url: window.SUPABASE_URL });
 }
