@@ -542,3 +542,41 @@ section h2 {
   border-radius: 10px;
   border: 1px solid #d6e9f8;
 }
+
+.card {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  margin: 24px auto;
+  max-width: 900px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.card h3 {
+  margin-top: 0;
+  font-size: 20px;
+  color: #1f2937;
+}
+
+.card ul {
+  margin: 16px 0 0 0;
+  padding-left: 18px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.wizard-nav {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#wizard-progress {
+  font-weight: 600;
+  color: #2563eb;
+}
+
