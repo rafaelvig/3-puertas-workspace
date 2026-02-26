@@ -497,7 +497,7 @@ function renderLineWithAttachments(funnelName, blockTitle, sectionTitle, lineTex
   const key = getItemKey(funnelName, blockTitle, sectionTitle, lineText);
 
   // Agregar LINK externo (section_links)
-  const btnAdd = makeBtn("Agregar archivo", async () => {
+  const btnAdd = makeBtn("Agregar link", async () => {
     const att = promptAddAttachment();
     if (!att) return;
 
@@ -509,7 +509,7 @@ function renderLineWithAttachments(funnelName, blockTitle, sectionTitle, lineTex
     } catch (e) {
       alert(e?.message || String(e));
     }
-  }, "btn btn-primary");
+  }, "btn btn-ghost");
 
   // Subir ARCHIVO al repositorio
   const inputFile = document.createElement("input");
@@ -539,7 +539,7 @@ function renderLineWithAttachments(funnelName, blockTitle, sectionTitle, lineTex
     }
   };
 
-  const btnUploadRepo = makeBtn("Subir a repositorio", () => {
+  const btnUploadRepo = makeBtn("Subir archivo", () => {
     inputFile.click();
   }, "btn btn-secondary");
 
@@ -565,7 +565,7 @@ function renderLineWithAttachments(funnelName, blockTitle, sectionTitle, lineTex
 
 function getFilesLabel(key) {
   const count = getAttachments(key).length;
-  return count > 0 ? `Archivos (${count})` : "Archivos";
+  return count > 0 ? `Archivos (${count})` : "Adjuntos";
 }
 
 function refreshLineAttachmentsCount(row, key) {
