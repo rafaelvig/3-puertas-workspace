@@ -1,3 +1,4 @@
+import { initAccordions } from "./accordion.js";
 export const estrategicoTopics = [
   {
 export async function renderEstrategico() {
@@ -50,4 +51,5 @@ export async function renderEstrategico() {
   },
   // ...otros tópicos
 ];
+
 
