@@ -12,7 +12,26 @@
   <div class="banner">
     <img src="img/banner.png" alt="Funnel B2B" />
   </div>
-<div class="accordion-item" data-subtopic="investigacion_mercado">
+
+
+</div>
+  <div class="funnel-nav">
+    <button class="funnel-tab" onclick="loadFunnel('ESTRATEGICO')">ESTRATÉGICO</button>
+    <button class="funnel-tab" onclick="loadFunnel('TOFU')">TOFU</button>
+    <button class="funnel-tab" onclick="loadFunnel('MOFU')">MOFU</button>
+    <button class="funnel-tab" onclick="loadFunnel('BOFU')">BOFU</button>
+  </div>
+</header>
+
+<div class="wizard-nav">
+  <button type="button" onclick="prevStep()">Anterior</button>
+  <span id="wizard-progress"></span>
+  <button type="button" onclick="nextStep()">Siguiente</button>
+</div>
+
+<div id="auth" class="auth-bar"></div>
+<div id="content"></div>
+  <div class="accordion-item" data-subtopic="investigacion_mercado">
 
   <div class="accordion-header">
     <span class="accordion-title">
@@ -32,24 +51,6 @@
     </div>
 
   </div>
-
-</div>
-  <div class="funnel-nav">
-    <button class="funnel-tab" onclick="loadFunnel('ESTRATEGICO')">ESTRATÉGICO</button>
-    <button class="funnel-tab" onclick="loadFunnel('TOFU')">TOFU</button>
-    <button class="funnel-tab" onclick="loadFunnel('MOFU')">MOFU</button>
-    <button class="funnel-tab" onclick="loadFunnel('BOFU')">BOFU</button>
-  </div>
-</header>
-
-<div class="wizard-nav">
-  <button type="button" onclick="prevStep()">Anterior</button>
-  <span id="wizard-progress"></span>
-  <button type="button" onclick="nextStep()">Siguiente</button>
-</div>
-
-<div id="auth" class="auth-bar"></div>
-<div id="content"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -79,6 +80,7 @@
 
 </body>
 </html>
+
 
 
 
