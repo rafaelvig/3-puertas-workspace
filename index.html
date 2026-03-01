@@ -1,50 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3 Puertas Workspace</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
 <body>
 
-<header class="app-header">
-  <div class="banner">
-    <img src="img/banner.png" alt="Funnel B2B" />
-  </div>
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div class="brand">
+        <div class="brand-title">3 Puertas Workspace</div>
+        <div class="brand-subtitle">Estrategia + Sistema Comercial</div>
+      </div>
+    </div>
 
-<header class="app-header">
-  [...]
-  <div class="funnel-nav">
-    <button onclick="loadFunnel('ESTRATEGICO')">ESTRATÉGICO</button>
-    <button onclick="loadFunnel('TOFU')">TOFU</button>
-    <button onclick="loadFunnel('MOFU')">MOFU</button>
-    <button onclick="loadFunnel('BOFU')">BOFU</button>
-  </div>
-</header>
+    <div class="topbar-center">
+      <div class="select-wrap">
+        <label class="sr-only" for="selCompany">Empresa</label>
+        <select id="selCompany"></select>
+      </div>
 
-<div id="auth" class="auth-bar"></div>
-<div id="content"></div>
+      <div class="select-wrap">
+        <label class="sr-only" for="selChannel">Canal</label>
+        <select id="selChannel"></select>
+      </div>
+    </div>
 
-<!-- scripts incluyen core y accordion.js -->
-<footer class="app-footer">
-  © 2026 Rafael Viglierchio. Uso interno.
-</footer>
+    <div class="topbar-right">
+      <div class="pill" id="sessionPill">Sesión: Local</div>
+    </div>
+  </header>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <main class="shell">
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab is-active" role="tab" aria-selected="true" data-tab="strategy">Estrategia</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="system">Sistema Comercial</button>
+    </nav>
 
-<script>
-  window.SUPABASE_URL = "https://vjwxkruczzjnkzfjgrba.supabase.co";
-  window.SUPABASE_ANON_KEY = "TU_ANON_KEY";
-</script>
+    <section class="content">
+      <div class="grid" id="cardsGrid"></div>
+    </section>
+  </main>
 
-<script defer src="js/tofu.js"></script>
-<script defer src="js/mofu.js"></script>
-<script defer src="js/bofu.js"></script>
-<script defer src="js/estrategico.js"></script>
-<script defer src="js/core.js"></script>
-<script defer src="js/accordion.js"></script>
+  <!-- Drawer (panel lateral) -->
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
-<script>
-  window.addEventListener("DOMContentLoaded", async () => {
-    await window.renderAuthBar?.();
-    await window.ensureStoreLoaded?.();
-    window.loadFunnel?.("ESTRATEGICO");
-  });
-</script>
+    <div class="drawer-panel" role="dialog" aria-modal="true" aria-label="Detalle de bloque">
+      <div class="drawer-header">
+        <div>
+          <div class="drawer-title" id="drawerTitle">Título</div>
+          <div class="drawer-meta" id="drawerMeta">Empresa · Canal · Plano</div>
+        </div>
+        <button class="icon-btn" id="drawerClose" aria-label="Cerrar">✕</button>
+      </div>
 
+      <div class="drawer-body" id="drawerBody"></div>
+    </div>
+  </aside>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
 </body>
-
+</html>
