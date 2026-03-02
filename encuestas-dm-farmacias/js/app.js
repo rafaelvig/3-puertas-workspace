@@ -2,11 +2,12 @@
    - 1 pregunta por pantalla + barra de progreso
    - Ranking drag&drop en Q12 (y reutilizable)
 */
+
 // Helpers de selección (NO jQuery)
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-const qs = (s, r=document) => r.querySelector(s);
-const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+const qs  = (s, r = document) => r.querySelector(s);
+const qsa = (s, r = document) => Array.from(r.querySelectorAll(s));
 
 const provinces = [
   "Buenos Aires","Catamarca","Chaco","Chubut","Córdoba","Corrientes","Entre Ríos","Formosa","Jujuy","La Pampa",
@@ -42,13 +43,14 @@ const questions = [
     help: "Seleccione una opción",
     options: provinces
   },
-  // 2b (ciudad: por ahora texto libre; si después querés listas por provincia, se hace)
+
+  // 2b (ciudad con autocompletar por provincia)
   {
     id: "q2_ciudad",
-    type: "text",
+    type: "datalist_city",
     required: true,
     title: "Ciudad",
-    help: "Escriba la ciudad/localidad"
+    help: "Escriba y seleccione su ciudad/localidad"
   },
 
   // 3
@@ -301,7 +303,7 @@ const questions = [
     options: ["Muy insatisfecho","Insatisfecho","Neutral","Satisfecho","Muy satisfecho"]
   },
 
-  // 22 (en tu Forms era ranking tipo matriz, acá lo dejo como ranking real)
+  // 22
   {
     id: "q22_ranking_motivos_cambio",
     type: "rank",
@@ -483,22 +485,24 @@ function render(){
   else if (q.type === "select") renderSelect(q);
   else if (q.type === "text") renderText(q);
   else if (q.type === "rank") renderRank(q);
+  else if (q.type === "datalist_city") renderDatalistCity(q);
+}
 
-
-   else if (q.type === "datalist_city") {
-
-  const prov = (answers.q2_provincia || "").trim();
+function renderDatalistCity(q){
+  const prov = (state.answers.q2_provincia || "").trim();
   const cities = (window.CITIES_BY_PROVINCE && window.CITIES_BY_PROVINCE[prov])
-      ? window.CITIES_BY_PROVINCE[prov]
-      : [];
+    ? window.CITIES_BY_PROVINCE[prov]
+    : [];
 
   const wrap = document.createElement("div");
+  wrap.className = "row";
 
   const input = document.createElement("input");
   input.type = "text";
+  input.id = q.id;
   input.placeholder = prov ? "Escribí y elegí de la lista" : "Primero elegí provincia";
   input.autocomplete = "off";
-  input.value = answers[q.id] || "";
+  input.value = state.answers[q.id] ?? "";
   input.disabled = !prov;
 
   const listId = `dl_${q.id}`;
@@ -513,15 +517,17 @@ function render(){
     dl.appendChild(opt);
   });
 
-  input.addEventListener("input", () => {
-    setAnswer(q.id, input.value);
-  });
-
   wrap.appendChild(input);
   wrap.appendChild(dl);
+  card.appendChild(wrap);
 
-  container.appendChild(wrap); // usá el mismo contenedor que usás en los otros tipos
-
+  // Mensaje simple si no hay ciudades cargadas para la provincia elegida
+  if (prov && cities.length === 0){
+    const hint = document.createElement("p");
+    hint.className = "q-help";
+    hint.textContent = "Todavía no hay ciudades cargadas para esta provincia. Puede escribirla manualmente.";
+    card.appendChild(hint);
+  }
 }
 
 function renderSingle(q){
@@ -632,7 +638,6 @@ function renderRank(q){
   const leftList = $("#rankLeft");
   const rightList = $("#rankRight");
 
-  // Si ya respondió antes, lo mostramos en right en ese orden
   const itemsRight = Array.isArray(saved) ? saved.slice() : [];
   const itemsLeft = q.items.filter(x => !itemsRight.includes(x));
 
@@ -674,6 +679,11 @@ function readCurrentAnswer(){
     return inp ? inp.value.trim() : "";
   }
 
+  if (q.type === "datalist_city"){
+    const inp = $(`#${q.id}`);
+    return inp ? inp.value.trim() : "";
+  }
+
   if (q.type === "rank"){
     const rightList = $("#rankRight");
     const items = rightList ? Array.from(rightList.querySelectorAll(".rank-item")).map(x => x.textContent) : [];
@@ -689,8 +699,9 @@ function validateAnswer(q, val){
   if (q.type === "single") return !!val;
   if (q.type === "select") return typeof val === "string" && val.length > 0;
   if (q.type === "text") return typeof val === "string" && val.length > 0;
+  if (q.type === "datalist_city") return typeof val === "string" && val.length > 0;
   if (q.type === "multi") return Array.isArray(val) && val.length > 0;
-  if (q.type === "rank") return Array.isArray(val) && val.length === q.items.length; // obliga a rankear todas
+  if (q.type === "rank") return Array.isArray(val) && val.length === q.items.length;
   return true;
 }
 
@@ -713,8 +724,8 @@ btnBack.addEventListener("click", () => {
     state.i--;
     render();
   }
-
 });
+
 btnNext.addEventListener("click", () => {
   if (!saveCurrent()) return;
 
@@ -730,4 +741,3 @@ btnNext.addEventListener("click", () => {
 });
 
 render();
-   
