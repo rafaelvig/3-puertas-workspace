@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Encuesta DM · Farmacias</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <main style="max-width:920px;margin:0 auto;padding:24px;">
+    <h1 id="title">Encuesta</h1>
+    <p id="desc"></p>
+
+    <form id="form">
+      <label>Tipo de farmacia *</label>
+      <select id="tipo_farmacia" required></select>
+
+      <label>Provincia *</label>
+      <select id="provincia" required></select>
+
+      <label>Principal fricción *</label>
+      <select id="friccion_principal" required></select>
+
+      <label id="rankLabel">Ranking *</label>
+      <ul id="rankList"></ul>
+
+      <label>Comentario (opcional)</label>
+      <textarea id="comentario" rows="4"></textarea>
+
+      <button id="btnSubmit" type="submit">Enviar</button>
+      <button id="btnReset" type="button">Reiniciar</button>
+
+      <div id="ok" style="display:none;margin-top:12px;">Enviado.</div>
+      <div id="err" style="display:none;margin-top:12px;"></div>
+    </form>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- pegá acá tu script largo tal cual -->
+  <script>
+    // TU CÓDIGO (el que pegaste)
+  </script>
+
+</body>
+</html>
