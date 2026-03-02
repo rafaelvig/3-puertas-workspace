@@ -714,7 +714,7 @@ btnBack.addEventListener("click", () => {
     render();
   }
 
-
+});
 btnNext.addEventListener("click", () => {
   if (!saveCurrent()) return;
 
