@@ -36,47 +36,227 @@
     </form>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
+ <script>
+  // ---------- Config ----------
   const SUPABASE_URL = "https://vjwxkruczzjnkzfjgrba.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqd3hrcnVjenpqbmt6ZmpncmJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMzQ4MzUsImV4cCI6MjA4NTcxMDgzNX0.8y621Ls7hTiva2zihhOXqlAiIo7omcd73-RWO73FYAs";
+  const SUPABASE_ANON_KEY = "PEGÁ_ACÁ_TU_ANON_KEY_REAL";
   const FORM_SLUG = "dm-farmacias";
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  async function test(){
-    const { data, error } = await sb
+  // ---------- DOM ----------
+  const elTitle = document.getElementById("title");
+  const elDesc  = document.getElementById("desc");
+  const elErr   = document.getElementById("err");
+  const elOk    = document.getElementById("ok");
+  const btnSubmit = document.getElementById("btnSubmit");
+
+  const selTipo = document.getElementById("tipo_farmacia");
+  const selProv = document.getElementById("provincia");
+  const selFric = document.getElementById("friccion_principal");
+  const taCom   = document.getElementById("comentario");
+
+  const rankList = document.getElementById("rankList");
+  let dragEl = null;
+
+  let formRow = null;
+  let questions = [];
+  let qByKey = {};
+
+  // ---------- UI helpers ----------
+  function setError(msg){
+    elErr.style.display = msg ? "block" : "none";
+    elErr.textContent = msg || "";
+  }
+  function setOk(show){
+    elOk.style.display = show ? "block" : "none";
+  }
+
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+  function escapeAttr(str){ return escapeHtml(str).replaceAll("`","&#096;"); }
+
+  function optFill(select, items){
+    select.innerHTML =
+      `<option value="" selected disabled>Elegir</option>` +
+      (items || []).map(x => `<option value="${escapeAttr(x)}">${escapeHtml(x)}</option>`).join("");
+  }
+
+  function refreshRanks(){
+    const items = [...rankList.querySelectorAll(".item")];
+    items.forEach((li, idx) => {
+      const rk = li.querySelector(".rank");
+      if(rk) rk.textContent = String(idx + 1);
+    });
+    return items.map(li => li.dataset.value);
+  }
+
+  function buildRanking(items){
+    rankList.innerHTML = (items || []).map(v => `
+      <li class="item" draggable="true" data-value="${escapeAttr(v)}"
+          style="display:flex;gap:10px;align-items:center;padding:10px 12px;margin:8px 0;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.04);cursor:grab;">
+        <span class="rank"
+              style="min-width:24px;height:24px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);font-size:12px;">
+        </span>
+        <span class="label">${escapeHtml(v)}</span>
+      </li>
+    `).join("");
+
+    [...rankList.querySelectorAll(".item")].forEach(li => {
+      li.addEventListener("dragstart", (e) => {
+        dragEl = li;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", li.dataset.value);
+      });
+
+      li.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const over = li;
+        if(over === dragEl) return;
+
+        const rect = over.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        rankList.insertBefore(dragEl, after ? over.nextSibling : over);
+      });
+
+      li.addEventListener("dragend", () => {
+        dragEl = null;
+        refreshRanks();
+      });
+
+      li.addEventListener("drop", (e) => e.preventDefault());
+    });
+
+    refreshRanks();
+  }
+
+  // ---------- Load form + questions ----------
+  async function loadForm(){
+    setError("");
+    setOk(false);
+
+    const { data: forms, error: fErr } = await sb
       .from("forms")
-      .select("id,slug,is_active")
+      .select("id, slug, title, description, is_active")
       .eq("slug", FORM_SLUG)
       .limit(1);
 
-    console.log("FORMS:", { data, error });
+    if(fErr) throw fErr;
+
+    formRow = forms?.[0];
+    if(!formRow || !formRow.is_active) throw new Error("Formulario no disponible.");
+
+    const { data: qs, error: qErr } = await sb
+      .from("questions")
+      .select("id, form_id, q_key, q_type, label, required, q_order, options")
+      .eq("form_id", formRow.id)
+      .order("q_order", { ascending: true });
+
+    if(qErr) throw qErr;
+
+    questions = qs || [];
+    qByKey = {};
+    questions.forEach(q => qByKey[q.q_key] = q);
+
+    elTitle.textContent = formRow.title || "Encuesta";
+    elDesc.textContent  = formRow.description || "Encuesta anónima.";
+
+    const qTipo = qByKey["tipo_farmacia"];
+    const qProv = qByKey["provincia"];
+    const qFric = qByKey["friccion_principal"];
+    const qRank = qByKey["ranking_criterios_drogueria"];
+
+    if(!qTipo || !qProv || !qFric || !qRank){
+      throw new Error("Faltan preguntas (revisar q_key en Supabase).");
+    }
+
+    optFill(selTipo, qTipo.options?.items || []);
+    optFill(selProv, qProv.options?.items || []);
+    optFill(selFric, qFric.options?.items || []);
+
+    document.getElementById("rankLabel").textContent = (qRank.label || "Ranking") + " *";
+    buildRanking(qRank.options?.items || []);
   }
 
-  test();
+  // ---------- Submit ----------
+  async function submitForm(e){
+    e.preventDefault();
+    setError("");
+    setOk(false);
 
+    if(!formRow) return setError("Formulario no cargado.");
 
-  async function testQuestions(){
-  const { data: forms } = await sb
-    .from("forms")
-    .select("id,slug,is_active")
-    .eq("slug", FORM_SLUG)
-    .limit(1);
+    const qTipo = qByKey["tipo_farmacia"];
+    const qProv = qByKey["provincia"];
+    const qFric = qByKey["friccion_principal"];
+    const qRank = qByKey["ranking_criterios_drogueria"];
+    const qCom  = qByKey["comentario"]; // opcional
 
-  const form = forms?.[0];
-  if(!form) return console.log("No form");
+    if(!selTipo.value || !selProv.value || !selFric.value){
+      return setError("Completá los campos obligatorios.");
+    }
 
-  const { data, error } = await sb
-    .from("questions")
-    .select("id, form_id, q_key, q_type, label, required, q_order, options")
-    .eq("form_id", form.id)
-    .order("q_order", { ascending: true });
+    const ranking = refreshRanks();
+    const expectedLen = (qRank?.options?.items || []).length;
+    if(!ranking || ranking.length !== expectedLen){
+      return setError("El ranking debe completarse con todas las opciones.");
+    }
 
-  console.log("QUESTIONS:", { data, error });
-}
-testQuestions();
+    btnSubmit.disabled = true;
+
+    try{
+      // 1) response
+      const { data: resp, error: rErr } = await sb
+        .from("responses")
+        .insert({ form_id: formRow.id, meta: {} })
+        .select("id")
+        .single();
+
+      if(rErr) throw rErr;
+
+      // 2) answers
+      const answers = [
+        { response_id: resp.id, question_id: qTipo.id, value: { v: selTipo.value } },
+        { response_id: resp.id, question_id: qProv.id, value: { v: selProv.value } },
+        { response_id: resp.id, question_id: qFric.id, value: { v: selFric.value } },
+        { response_id: resp.id, question_id: qRank.id, value: { order: ranking } },
+      ];
+
+      const comment = (taCom.value || "").trim();
+      if(qCom && comment){
+        answers.push({ response_id: resp.id, question_id: qCom.id, value: { v: comment } });
+      }
+
+      const { error: aErr } = await sb.from("answers").insert(answers);
+      if(aErr) throw aErr;
+
+      setOk(true);
+      document.getElementById("form").reset();
+      buildRanking(qRank.options?.items || []);
+    }catch(err){
+      setError(err?.message || "Error al enviar.");
+    }finally{
+      btnSubmit.disabled = false;
+    }
+  }
+
+  document.getElementById("form").addEventListener("submit", submitForm);
+
+  document.getElementById("btnReset").addEventListener("click", () => {
+    document.getElementById("form").reset();
+    setError("");
+    setOk(false);
+    const qRank = qByKey["ranking_criterios_drogueria"];
+    buildRanking(qRank?.options?.items || []);
+  });
+
+  loadForm().catch(err => setError(err?.message || "No se pudo cargar."));
 </script>
 
 
