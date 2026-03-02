@@ -519,7 +519,7 @@ function renderMiniList(node){
         </li>
       `).join("")
     }</ul>`);
-  }
+
 
   return parts.join("");
 }
