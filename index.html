@@ -64,5 +64,218 @@
 
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "PEGAR_SUPABASE_URL";
+  const SUPABASE_ANON_KEY = "PEGAR_SUPABASE_ANON_KEY";
+  const FORM_SLUG = "dm-farmacias";
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const elTitle = document.getElementById("title");
+  const elDesc  = document.getElementById("desc");
+  const elErr   = document.getElementById("err");
+  const elOk    = document.getElementById("ok");
+  const btnSubmit = document.getElementById("btnSubmit");
+
+  const selTipo = document.getElementById("tipo_farmacia");
+  const selProv = document.getElementById("provincia");
+  const selFric = document.getElementById("friccion_principal");
+  const taCom   = document.getElementById("comentario");
+
+  const rankList = document.getElementById("rankList");
+  let dragEl = null;
+
+  let formRow = null;
+  let questions = [];
+  let qByKey = {};
+
+  function setError(msg){
+    elErr.style.display = msg ? "block" : "none";
+    elErr.textContent = msg || "";
+  }
+  function setOk(show){
+    elOk.style.display = show ? "block" : "none";
+  }
+
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+  function escapeAttr(str){ return escapeHtml(str).replaceAll("`","&#096;"); }
+
+  function optFill(select, items){
+    select.innerHTML =
+      `<option value="" selected disabled>Elegir</option>` +
+      (items || []).map(x => `<option value="${escapeAttr(x)}">${escapeHtml(x)}</option>`).join("");
+  }
+
+  function refreshRanks(){
+    const items = [...rankList.querySelectorAll(".item")];
+    items.forEach((li, idx) => li.querySelector(".rank").textContent = String(idx + 1));
+    return items.map(li => li.dataset.value);
+  }
+
+  function buildRanking(items){
+    rankList.innerHTML = (items || []).map(v => `
+      <li class="item" draggable="true" data-value="${escapeAttr(v)}">
+        <span class="rank"></span>
+        <span class="label">${escapeHtml(v)}</span>
+      </li>
+    `).join("");
+
+    [...rankList.querySelectorAll(".item")].forEach(li => {
+      li.addEventListener("dragstart", (e) => {
+        dragEl = li;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", li.dataset.value);
+      });
+
+      li.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const over = li;
+        if(over === dragEl) return;
+        over.classList.add("drag-over");
+        const rect = over.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        rankList.insertBefore(dragEl, after ? over.nextSibling : over);
+      });
+
+      li.addEventListener("dragend", () => {
+        [...rankList.querySelectorAll(".item")].forEach(x => x.classList.remove("drag-over"));
+        dragEl = null;
+        refreshRanks();
+      });
+
+      li.addEventListener("drop", (e) => e.preventDefault());
+    });
+
+    refreshRanks();
+  }
+
+  async function loadForm(){
+    setError("");
+    setOk(false);
+
+    const { data: forms, error: fErr } = await sb
+      .from("forms")
+      .select("id, slug, title, description, is_active")
+      .eq("slug", FORM_SLUG)
+      .limit(1);
+
+    if(fErr) throw fErr;
+    formRow = forms?.[0];
+    if(!formRow || !formRow.is_active) throw new Error("Formulario no disponible.");
+
+    const { data: qs, error: qErr } = await sb
+      .from("questions")
+      .select("id, form_id, q_key, q_type, label, required, q_order, options")
+      .eq("form_id", formRow.id)
+      .order("q_order", { ascending: true });
+
+    if(qErr) throw qErr;
+
+    questions = qs || [];
+    qByKey = {};
+    questions.forEach(q => qByKey[q.q_key] = q);
+
+    elTitle.textContent = formRow.title;
+    elDesc.textContent = formRow.description || "Encuesta anónima.";
+
+    // Render “DM-Farmacias”: mapeamos a tus 3 selects + ranking + comentario
+    // (si más adelante querés render 100% automático por tipo, lo hacemos)
+    const qTipo = qByKey["tipo_farmacia"];
+    const qProv = qByKey["provincia"];
+    const qFric = qByKey["friccion_principal"];
+    const qRank = qByKey["ranking_criterios_drogueria"];
+
+    if(!qTipo || !qProv || !qFric || !qRank) {
+      throw new Error("Faltan preguntas clave en Supabase (revisar q_key).");
+    }
+
+    optFill(selTipo, qTipo.options?.items || []);
+    optFill(selProv, qProv.options?.items || []);
+    optFill(selFric, qFric.options?.items || []);
+
+    document.getElementById("rankLabel").textContent = qRank.label + " *";
+    buildRanking(qRank.options?.items || []);
+  }
+
+  async function submitForm(e){
+    e.preventDefault();
+    setError("");
+    setOk(false);
+
+    if(!formRow) return setError("Formulario no cargado.");
+
+    const qTipo = qByKey["tipo_farmacia"];
+    const qProv = qByKey["provincia"];
+    const qFric = qByKey["friccion_principal"];
+    const qRank = qByKey["ranking_criterios_drogueria"];
+    const qCom  = qByKey["comentario"]; // opcional
+
+    if(!selTipo.value || !selProv.value || !selFric.value) {
+      return setError("Completá los campos obligatorios.");
+    }
+
+    const ranking = refreshRanks();
+    const expectedLen = (qRank?.options?.items || []).length;
+    if(!ranking || ranking.length !== expectedLen){
+      return setError("El ranking debe completarse con todas las opciones.");
+    }
+
+    btnSubmit.disabled = true;
+
+    try{
+      const { data: resp, error: rErr } = await sb
+        .from("responses")
+        .insert({ form_id: formRow.id, meta: {} })
+        .select("id")
+        .single();
+
+      if(rErr) throw rErr;
+
+      const answers = [
+        { response_id: resp.id, question_id: qTipo.id, value: { v: selTipo.value } },
+        { response_id: resp.id, question_id: qProv.id, value: { v: selProv.value } },
+        { response_id: resp.id, question_id: qFric.id, value: { v: selFric.value } },
+        { response_id: resp.id, question_id: qRank.id, value: { order: ranking } }
+      ];
+
+      const comment = (taCom.value || "").trim();
+      if(qCom && comment) {
+        answers.push({ response_id: resp.id, question_id: qCom.id, value: { v: comment } });
+      }
+
+      const { error: aErr } = await sb.from("answers").insert(answers);
+      if(aErr) throw aErr;
+
+      setOk(true);
+      document.getElementById("form").reset();
+      buildRanking(qRank.options?.items || []);
+    }catch(err){
+      setError(err?.message || "Error al enviar.");
+    }finally{
+      btnSubmit.disabled = false;
+    }
+  }
+
+  document.getElementById("form").addEventListener("submit", submitForm);
+
+  document.getElementById("btnReset").addEventListener("click", () => {
+    document.getElementById("form").reset();
+    setError("");
+    setOk(false);
+    const qRank = qByKey["ranking_criterios_drogueria"];
+    buildRanking(qRank?.options?.items || []);
+  });
+
+  loadForm().catch(err => setError(err?.message || "No se pudo cargar."));
+</script>
 </body>
 </html>
+
