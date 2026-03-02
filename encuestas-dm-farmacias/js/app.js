@@ -439,7 +439,7 @@ const state = {
   answers: {} // id -> value (string | array | ranking array)
 };
 
-const card = $("#card");
+const card = qs("#card");
 const btnBack = $("#btnBack");
 const btnNext = $("#btnNext");
 const progressBar = $("#progressBar");
