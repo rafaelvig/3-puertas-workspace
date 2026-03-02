@@ -221,8 +221,15 @@ function wireAccordion(root, blockId){
 
     const action = actionBtn.getAttribute("data-action");
 
-    if(action === "upload") return onUpload(realBlockId, subName, item);
-    if(action === "link") return onAddLink(realBlockId, subName, item);
+    if(action === "upload"){
+      onUpload(realBlockId, subName, item);
+      return;
+    }
+
+    if(action === "link"){
+      onAddLink(realBlockId, subName, item);
+      return;
+    }
 
     if(action === "note-open"){
       const box = $(".note-compose", item);
@@ -519,7 +526,7 @@ function renderMiniList(node){
         </li>
       `).join("")
     }</ul>`);
-
+}
 
   return parts.join("");
 }
