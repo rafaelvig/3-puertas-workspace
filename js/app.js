@@ -170,16 +170,27 @@ function renderAccordion(block){
           <span class="acc-title">${escapeHtml(subName)}</span>
           <span class="acc-count">${cnt}</span>
         </button>
+
         <div class="acc-body">
           <div class="row-actions">
             <button class="btn" type="button" data-action="upload">Subir documento</button>
             <button class="btn" type="button" data-action="link">Agregar link</button>
-            <button class="btn" type="button" data-action="note">Agregar nota</button>
+            <button class="btn" type="button" data-action="note-open">Agregar nota</button>
           </div>
 
           <input class="file-input" type="file" style="display:none" />
 
-          <div class="mini">
+          <div class="note-compose" style="display:none; margin-top:10px;">
+            <textarea class="note-new-text" rows="4"
+              style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;"
+              placeholder="Escribí una nota..."></textarea>
+            <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+              <button class="btn" type="button" data-action="note-save-new">Guardar</button>
+              <button class="btn" type="button" data-action="note-cancel-new">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="mini" style="margin-top:10px;">
             ${renderMiniList(node)}
           </div>
         </div>
@@ -187,10 +198,8 @@ function renderAccordion(block){
     `;
   }).join("");
 
-  // No guardo store acá: solo lo uso para render.
   return `<div class="accordion">${accItems}</div>`;
 }
-
 function wireAccordion(root, blockId){
   // toggle
   $$(".acc-header", root).forEach(btn => {
@@ -200,42 +209,128 @@ function wireAccordion(root, blockId){
     });
   });
 
-  // acciones (nota, link, upload)
+  // acciones
   root.addEventListener("click", (e) => {
     const actionBtn = e.target.closest("button[data-action]");
     if(!actionBtn) return;
 
     const item = actionBtn.closest(".acc-item");
     const subName = item?.getAttribute("data-sub");
-    if(!item || !subName) return;
+    const realBlockId = item?.getAttribute("data-block");
+    if(!item || !subName || !realBlockId) return;
 
     const action = actionBtn.getAttribute("data-action");
-    if(action === "note") onAddNote(blockId, subName, item);
-    if(action === "link") onAddLink(blockId, subName, item);
-    if(action === "upload") onUpload(blockId, subName, item);
+
+    if(action === "upload") return onUpload(realBlockId, subName, item);
+    if(action === "link") return onAddLink(realBlockId, subName, item);
+
+    if(action === "note-open"){
+      const box = $(".note-compose", item);
+      if(box) box.style.display = "block";
+      const ta = $(".note-new-text", item);
+      if(ta) ta.focus();
+      return;
+    }
+
+    if(action === "note-cancel-new"){
+      const box = $(".note-compose", item);
+      if(box) box.style.display = "none";
+      const ta = $(".note-new-text", item);
+      if(ta) ta.value = "";
+      return;
+    }
+
+    if(action === "note-save-new"){
+      const ta = $(".note-new-text", item);
+      const text = (ta?.value || "").trim();
+      if(!text) return;
+
+      const store = loadStore();
+      const node = ensureSubNode(store, realBlockId, subName);
+      node.notes.unshift({ text, ts: Date.now() });
+      saveStore(store);
+
+      if(ta) ta.value = "";
+      const box = $(".note-compose", item);
+      if(box) box.style.display = "none";
+
+      refreshSubUI(realBlockId, subName, item);
+      return;
+    }
   });
 
-  // eliminación individual
+  // editar / guardar / cancelar nota existente
+  root.addEventListener("click", (e) => {
+    const item = e.target.closest(".acc-item");
+    if(!item) return;
+
+    const subName = item.getAttribute("data-sub");
+    const realBlockId = item.getAttribute("data-block");
+    if(!subName || !realBlockId) return;
+
+    const btnEdit = e.target.closest("[data-note-edit]");
+    if(btnEdit){
+      const idx = Number(btnEdit.getAttribute("data-note-edit"));
+      const view = item.querySelector(`[data-note-view="${idx}"]`);
+      const box = item.querySelector(`[data-note-editbox="${idx}"]`);
+      if(view) view.style.display = "none";
+      if(box) box.style.display = "block";
+      const ta = box?.querySelector("textarea");
+      if(ta) ta.focus();
+      return;
+    }
+
+    const btnCancel = e.target.closest("[data-note-cancel]");
+    if(btnCancel){
+      const idx = Number(btnCancel.getAttribute("data-note-cancel"));
+      const view = item.querySelector(`[data-note-view="${idx}"]`);
+      const box = item.querySelector(`[data-note-editbox="${idx}"]`);
+      if(box) box.style.display = "none";
+      if(view) view.style.display = "block";
+      refreshSubUI(realBlockId, subName, item);
+      return;
+    }
+
+    const btnSave = e.target.closest("[data-note-save]");
+    if(btnSave){
+      const idx = Number(btnSave.getAttribute("data-note-save"));
+      const box = item.querySelector(`[data-note-editbox="${idx}"]`);
+      const ta = box?.querySelector("textarea");
+      const text = (ta?.value || "").trim();
+      if(!text) return;
+
+      const store = loadStore();
+      const node = ensureSubNode(store, realBlockId, subName);
+      if(node.notes?.[idx]) node.notes[idx].text = text;
+      saveStore(store);
+
+      refreshSubUI(realBlockId, subName, item);
+      return;
+    }
+  });
+
+  // eliminación individual (nota/link/archivo)
   root.addEventListener("click", (e) => {
     const delBtn = e.target.closest("[data-del]");
     if(!delBtn) return;
 
-    const type = delBtn.getAttribute("data-del");
-    const index = Number(delBtn.getAttribute("data-index"));
     const item = delBtn.closest(".acc-item");
     const subName = item?.getAttribute("data-sub");
-    const bId = item?.getAttribute("data-block");
-    if(!item || !subName || !bId) return;
+    const realBlockId = item?.getAttribute("data-block");
+    if(!item || !subName || !realBlockId) return;
+
+    const type = delBtn.getAttribute("data-del");
+    const index = Number(delBtn.getAttribute("data-index"));
 
     const store = loadStore();
-    const node = ensureSubNode(store, bId, subName);
+    const node = ensureSubNode(store, realBlockId, subName);
 
     if(type === "note") node.notes.splice(index, 1);
     if(type === "link") node.links.splice(index, 1);
     if(type === "file") node.files.splice(index, 1);
 
     saveStore(store);
-    refreshSubUI(bId, subName, item);
+    refreshSubUI(realBlockId, subName, item);
   });
 }
 
@@ -304,6 +399,74 @@ function renderMiniList(node){
   if(notes.length + links.length + files.length === 0){
     return `Sin contenido cargado`;
   }
+
+  function delBtn(type, index){
+    return `<button data-del="${type}" data-index="${index}"
+      style="margin-left:8px; font-size:11px; opacity:.7; cursor:pointer; border:0; background:none; color:#ff6b6b;">✕</button>`;
+  }
+
+  function editBtn(index){
+    return `<button data-note-edit="${index}"
+      style="margin-left:8px; font-size:11px; opacity:.7; cursor:pointer; border:0; background:none; color:rgba(255,255,255,.8); text-decoration:underline;">Editar</button>`;
+  }
+
+  const parts = [];
+
+  if(notes.length){
+    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Notas</span></div>`);
+    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${
+      notes.map((n,i) => `
+        <li style="margin-bottom:8px;">
+          <div class="note-view" data-note-view="${i}">
+            ${escapeHtml(trunc(n.text, 300))}
+            ${editBtn(i)}
+            ${delBtn("note", i)}
+          </div>
+
+          <div class="note-edit" data-note-editbox="${i}" style="display:none; margin-top:8px;">
+            <textarea rows="4"
+              style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;">${escapeHtml(n.text)}</textarea>
+            <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+              <button class="btn" type="button" data-note-save="${i}">Guardar</button>
+              <button class="btn" type="button" data-note-cancel="${i}">Cancelar</button>
+            </div>
+          </div>
+        </li>
+      `).join("")
+    }</ul>`);
+  }
+
+  if(links.length){
+    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Links</span></div>`);
+    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${
+      links.map((l,i) => {
+        const label = l.title ? escapeHtml(trunc(l.title, 60)) : escapeHtml(trunc(l.url, 60));
+        const href = escapeAttr(l.url);
+        return `
+          <li>
+            <a href="${href}" target="_blank" rel="noopener noreferrer"
+              style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>
+            ${delBtn("link", i)}
+          </li>
+        `;
+      }).join("")
+    }</ul>`);
+  }
+
+  if(files.length){
+    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Archivos</span></div>`);
+    parts.push(`<ul style="margin:0 0 0 16px; padding:0;">${
+      files.map((f,i) => `
+        <li>
+          ${escapeHtml(trunc(f.name, 60))}
+          ${delBtn("file", i)}
+        </li>
+      `).join("")
+    }</ul>`);
+  }
+
+  return parts.join("");
+}
 
   function delBtn(type, index){
     return `<button 
