@@ -2,7 +2,9 @@
    - 1 pregunta por pantalla + barra de progreso
    - Ranking drag&drop en Q12 (y reutilizable)
 */
-
+// Helpers de selección (NO jQuery)
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const qs = (s, r=document) => r.querySelector(s);
 const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
 
