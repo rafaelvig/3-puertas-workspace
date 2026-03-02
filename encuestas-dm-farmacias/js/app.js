@@ -3,7 +3,8 @@
    - Ranking drag&drop en Q12 (y reutilizable)
 */
 
-const $ = (s, r=document) => r.querySelector(s);
+const qs = (s, r=document) => r.querySelector(s);
+const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
 
 const provinces = [
   "Buenos Aires","Catamarca","Chaco","Chubut","Córdoba","Corrientes","Entre Ríos","Formosa","Jujuy","La Pampa",
