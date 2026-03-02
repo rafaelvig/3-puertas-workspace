@@ -754,7 +754,6 @@ if (q.type === "datalist_city"){
   if (!check.ok){
     alert(check.msg);
     return false;
-  }
    if (q.type === "multi") return Array.isArray(val) && val.length > 0;
   if (q.type === "rank") return Array.isArray(val) && val.length === q.items.length;
   return true;
