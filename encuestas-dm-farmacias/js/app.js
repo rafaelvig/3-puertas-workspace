@@ -483,6 +483,45 @@ function render(){
   else if (q.type === "select") renderSelect(q);
   else if (q.type === "text") renderText(q);
   else if (q.type === "rank") renderRank(q);
+
+
+   else if (q.type === "datalist_city") {
+
+  const prov = (answers.q2_provincia || "").trim();
+  const cities = (window.CITIES_BY_PROVINCE && window.CITIES_BY_PROVINCE[prov])
+      ? window.CITIES_BY_PROVINCE[prov]
+      : [];
+
+  const wrap = document.createElement("div");
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = prov ? "Escribí y elegí de la lista" : "Primero elegí provincia";
+  input.autocomplete = "off";
+  input.value = answers[q.id] || "";
+  input.disabled = !prov;
+
+  const listId = `dl_${q.id}`;
+  input.setAttribute("list", listId);
+
+  const dl = document.createElement("datalist");
+  dl.id = listId;
+
+  cities.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c;
+    dl.appendChild(opt);
+  });
+
+  input.addEventListener("input", () => {
+    setAnswer(q.id, input.value);
+  });
+
+  wrap.appendChild(input);
+  wrap.appendChild(dl);
+
+  container.appendChild(wrap); // usá el mismo contenedor que usás en los otros tipos
+
 }
 
 function renderSingle(q){
