@@ -56,6 +56,27 @@
   }
 
   test();
+
+
+  async function testQuestions(){
+  const { data: forms } = await sb
+    .from("forms")
+    .select("id,slug,is_active")
+    .eq("slug", FORM_SLUG)
+    .limit(1);
+
+  const form = forms?.[0];
+  if(!form) return console.log("No form");
+
+  const { data, error } = await sb
+    .from("questions")
+    .select("id, form_id, q_key, q_type, label, required, q_order, options")
+    .eq("form_id", form.id)
+    .order("q_order", { ascending: true });
+
+  console.log("QUESTIONS:", { data, error });
+}
+testQuestions();
 </script>
 
 
