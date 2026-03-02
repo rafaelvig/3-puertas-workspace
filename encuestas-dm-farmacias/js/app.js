@@ -713,7 +713,7 @@ btnBack.addEventListener("click", () => {
     state.i--;
     render();
   }
-});
+
 
 btnNext.addEventListener("click", () => {
   if (!saveCurrent()) return;
@@ -730,4 +730,4 @@ btnNext.addEventListener("click", () => {
 });
 
 render();
-   } 
+   
