@@ -744,21 +744,34 @@ function validateAnswer(q, val){
   if (!q.required) return true;
 
   if (q.type === "single") return !!val;
-  if (q.type === "select") return typeof val === "string" && val.length > 0;
-  if (q.type === "text") return typeof val === "string" && val.length > 0;
-if (q.type === "datalist_city"){
-  if (!(typeof val === "string" && val.length > 0)) return false;
 
-  const selectedProv = state.answers.q2_provincia || "";
-  const check = validateCityCrossProvince(selectedProv, val);
-  if (!check.ok){
-    alert(check.msg);
-    return false;
-   if (q.type === "multi") return Array.isArray(val) && val.length > 0;
-  if (q.type === "rank") return Array.isArray(val) && val.length === q.items.length;
+  if (q.type === "select")
+    return typeof val === "string" && val.length > 0;
+
+  if (q.type === "text")
+    return typeof val === "string" && val.length > 0;
+
+  if (q.type === "datalist_city"){
+    if (!(typeof val === "string" && val.length > 0)) return false;
+
+    const selectedProv = state.answers.q2_provincia || "";
+    const check = validateCityCrossProvince(selectedProv, val);
+
+    if (!check.ok){
+      alert(check.msg);
+      return false;
+    }
+    return true;
+  }
+
+  if (q.type === "multi")
+    return Array.isArray(val) && val.length > 0;
+
+  if (q.type === "rank")
+    return Array.isArray(val) && val.length === q.items.length;
+
   return true;
 }
-
 function saveCurrent(){
   const q = questions[state.i];
   const val = readCurrentAnswer();
