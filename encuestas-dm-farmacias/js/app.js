@@ -655,6 +655,53 @@ function rankItem(text){
   return d;
 }
 
+function normalizeStr(s){
+  return (s || "")
+    .toString()
+    .trim()
+    .toLowerCase();
+}
+
+// Busca en las listas cargadas qué provincia "conoce" esa ciudad.
+// Devuelve la provincia encontrada o null si no está en ninguna lista cargada.
+function findProvinceForCity(city){
+  const map = window.CITIES_BY_PROVINCE || {};
+  const cN = normalizeStr(city);
+  if (!cN) return null;
+
+  for (const provKey of Object.keys(map)){
+    const arr = map[provKey];
+    if (!Array.isArray(arr)) continue;
+    const hit = arr.some(x => normalizeStr(x) === cN);
+    if (hit) return provKey;
+  }
+  return null;
+}
+
+/*
+Regla:
+- Si la ciudad está en listas cargadas y pertenece a otra provincia -> invalida
+- Si no está en listas cargadas -> valida (ciudad aún no cargada)
+- Si está en la misma provincia -> valida
+*/
+function validateCityCrossProvince(selectedProv, city){
+  const p = (selectedProv || "").trim();
+  const c = (city || "").trim();
+  if (!p || !c) return { ok: false, msg: "Complete provincia y ciudad." };
+
+  const provFound = findProvinceForCity(c);
+  if (!provFound) return { ok: true }; // ciudad no cargada en listas -> permitir
+
+  if (provFound !== p){
+    return {
+      ok: false,
+      msg: `La ciudad "${c}" corresponde a "${provFound}" (según las ciudades cargadas). Revise provincia.`
+    };
+  }
+
+  return { ok: true };
+}
+
 function readCurrentAnswer(){
   const q = questions[state.i];
 
