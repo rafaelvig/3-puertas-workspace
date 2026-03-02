@@ -7,6 +7,38 @@ const state = {
   channelId: null
 };
 
+/* -----------------------
+   Storage (local)
+------------------------ */
+function storageKey(){
+  return `3pws:${state.companyId}:${state.channelId}:${state.tab}`;
+}
+
+function loadStore(){
+  try{
+    return JSON.parse(localStorage.getItem(storageKey()) || "{}");
+  }catch{
+    return {};
+  }
+}
+
+function saveStore(obj){
+  localStorage.setItem(storageKey(), JSON.stringify(obj));
+}
+
+function ensureSubNode(store, blockId, subName){
+  store[blockId] = store[blockId] || {};
+  store[blockId][subName] = store[blockId][subName] || { notes: [], links: [], files: [] };
+  return store[blockId][subName];
+}
+
+function countItems(node){
+  return (node?.notes?.length || 0) + (node?.links?.length || 0) + (node?.files?.length || 0);
+}
+
+/* -----------------------
+   Init: selectors + tabs
+------------------------ */
 function initSelectors(){
   const companies = window.WS_CONFIG.companies;
   const selCompany = $("#selCompany");
@@ -18,6 +50,7 @@ function initSelectors(){
     state.companyId = selCompany.value;
     syncChannels();
     render();
+    closeDrawer();
   });
 
   syncChannels();
@@ -33,20 +66,29 @@ function syncChannels(){
   selChannel.onchange = () => {
     state.channelId = selChannel.value;
     render();
+    closeDrawer();
   };
 }
 
 function initTabs(){
   $$(".tab").forEach(btn => {
     btn.addEventListener("click", () => {
-      $$(".tab").forEach(b => b.classList.remove("is-active"));
+      $$(".tab").forEach(b => {
+        b.classList.remove("is-active");
+        b.setAttribute("aria-selected", "false");
+      });
       btn.classList.add("is-active");
+      btn.setAttribute("aria-selected", "true");
       state.tab = btn.dataset.tab;
       render();
+      closeDrawer();
     });
   });
 }
 
+/* -----------------------
+   Cards
+------------------------ */
 function render(){
   const grid = $("#cardsGrid");
   const items = window.WS_CONFIG.planes[state.tab] || [];
@@ -67,6 +109,9 @@ function render(){
   });
 }
 
+/* -----------------------
+   Drawer
+------------------------ */
 function openDrawer(blockId){
   const items = window.WS_CONFIG.planes[state.tab] || [];
   const block = items.find(x => x.id === blockId);
@@ -84,44 +129,12 @@ function openDrawer(blockId){
   $("#drawer").classList.add("is-open");
   $("#drawer").setAttribute("aria-hidden", "false");
 
-  // handlers acordeón
-  $$(".acc-header", body).forEach(btn => {
-    btn.addEventListener("click", () => {
-      const item = btn.closest(".acc-item");
-      item.classList.toggle("is-open");
-    });
-  });
+  wireAccordion(body, block.id);
 }
 
 function closeDrawer(){
   $("#drawer").classList.remove("is-open");
   $("#drawer").setAttribute("aria-hidden", "true");
-}
-
-function renderAccordion(block){
-  const subs = block.subs || [];
-  const accItems = subs.map((s) => `
-    <div class="acc-item">
-      <button class="acc-header" type="button">
-        <span class="acc-title">${s}</span>
-        <span class="acc-count">0</span>
-      </button>
-      <div class="acc-body">
-        <div class="row-actions">
-          <button class="btn" type="button" data-action="upload">Subir documento</button>
-          <button class="btn" type="button" data-action="link">Agregar link</button>
-          <button class="btn" type="button" data-action="note">Agregar nota</button>
-        </div>
-        <div class="mini">Sin documentos cargados</div>
-      </div>
-    </div>
-  `).join("");
-
-  return `
-    <div class="accordion">
-      ${accItems}
-    </div>
-  `;
 }
 
 function initDrawer(){
@@ -132,11 +145,193 @@ function initDrawer(){
   });
 }
 
+/* -----------------------
+   Accordion render + wiring
+------------------------ */
+function renderAccordion(block){
+  const store = loadStore();
+  const subs = block.subs || [];
+
+  const accItems = subs.map((subName) => {
+    const node = ensureSubNode(store, block.id, subName);
+    const cnt = countItems(node);
+
+    return `
+      <div class="acc-item" data-sub="${escapeAttr(subName)}" data-block="${escapeAttr(block.id)}">
+        <button class="acc-header" type="button">
+          <span class="acc-title">${escapeHtml(subName)}</span>
+          <span class="acc-count">${cnt}</span>
+        </button>
+        <div class="acc-body">
+          <div class="row-actions">
+            <button class="btn" type="button" data-action="upload">Subir documento</button>
+            <button class="btn" type="button" data-action="link">Agregar link</button>
+            <button class="btn" type="button" data-action="note">Agregar nota</button>
+          </div>
+
+          <input class="file-input" type="file" style="display:none" />
+
+          <div class="mini">
+            ${renderMiniList(node)}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // No guardo store acá: solo lo uso para render.
+  return `<div class="accordion">${accItems}</div>`;
+}
+
+function wireAccordion(root, blockId){
+  // toggle
+  $$(".acc-header", root).forEach(btn => {
+    btn.addEventListener("click", () => {
+      const item = btn.closest(".acc-item");
+      item.classList.toggle("is-open");
+    });
+  });
+
+  // actions (delegado)
+  root.addEventListener("click", (e) => {
+    const actionBtn = e.target.closest("button[data-action]");
+    if(!actionBtn) return;
+
+    const item = actionBtn.closest(".acc-item");
+    const subName = item?.getAttribute("data-sub");
+    const action = actionBtn.getAttribute("data-action");
+    if(!item || !subName) return;
+
+    if(action === "note") onAddNote(blockId, subName, item);
+    if(action === "link") onAddLink(blockId, subName, item);
+    if(action === "upload") onUpload(blockId, subName, item);
+  });
+}
+
+function onAddNote(blockId, subName, accItem){
+  const text = prompt("Escribí la nota:");
+  if(!text || !text.trim()) return;
+
+  const store = loadStore();
+  const node = ensureSubNode(store, blockId, subName);
+  node.notes.unshift({ text: text.trim(), ts: Date.now() });
+  saveStore(store);
+
+  refreshSubUI(blockId, subName, accItem);
+}
+
+function onAddLink(blockId, subName, accItem){
+  const url = prompt("Pegá la URL del link:");
+  if(!url || !url.trim()) return;
+
+  const title = prompt("Título del link (opcional):") || "";
+  const store = loadStore();
+  const node = ensureSubNode(store, blockId, subName);
+  node.links.unshift({ url: url.trim(), title: title.trim(), ts: Date.now() });
+  saveStore(store);
+
+  refreshSubUI(blockId, subName, accItem);
+}
+
+function onUpload(blockId, subName, accItem){
+  const input = $(".file-input", accItem);
+  if(!input) return;
+
+  input.value = "";
+  input.onchange = () => {
+    const f = input.files?.[0];
+    if(!f) return;
+
+    const store = loadStore();
+    const node = ensureSubNode(store, blockId, subName);
+    // Mock: guardamos nombre y size (no sube a ningún lado)
+    node.files.unshift({ name: f.name, size: f.size, ts: Date.now() });
+    saveStore(store);
+
+    refreshSubUI(blockId, subName, accItem);
+  };
+
+  input.click();
+}
+
+function refreshSubUI(blockId, subName, accItem){
+  const store = loadStore();
+  const node = ensureSubNode(store, blockId, subName);
+
+  const cntEl = $(".acc-count", accItem);
+  if(cntEl) cntEl.textContent = String(countItems(node));
+
+  const miniEl = $(".mini", accItem);
+  if(miniEl) miniEl.innerHTML = renderMiniList(node);
+}
+
+function renderMiniList(node){
+  const notes = node?.notes || [];
+  const links = node?.links || [];
+  const files = node?.files || [];
+
+  if(notes.length + links.length + files.length === 0){
+    return `Sin contenido cargado`;
+  }
+
+  const parts = [];
+
+  if(notes.length){
+    parts.push(`<div style="margin-bottom:8px;"><span style="opacity:.8">Notas</span></div>`);
+    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${
+      notes.slice(0,3).map(n => `<li>${escapeHtml(trunc(n.text, 80))}</li>`).join("")
+    }</ul>`);
+  }
+
+  if(links.length){
+    parts.push(`<div style="margin-bottom:8px;"><span style="opacity:.8">Links</span></div>`);
+    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${
+      links.slice(0,3).map(l => {
+        const label = l.title ? escapeHtml(trunc(l.title, 60)) : escapeHtml(trunc(l.url, 60));
+        const href = escapeAttr(l.url);
+        return `<li><a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a></li>`;
+      }).join("")
+    }</ul>`);
+  }
+
+  if(files.length){
+    parts.push(`<div style="margin-bottom:8px;"><span style="opacity:.8">Archivos</span></div>`);
+    parts.push(`<ul style="margin:0 0 0 16px; padding:0;">${
+      files.slice(0,3).map(f => `<li>${escapeHtml(trunc(f.name, 60))}</li>`).join("")
+    }</ul>`);
+  }
+
+  return parts.join("");
+}
+
+/* -----------------------
+   Utils (safe)
+------------------------ */
+function trunc(s, n){
+  if(!s) return "";
+  return s.length > n ? s.slice(0, n-1) + "…" : s;
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttr(str){
+  return escapeHtml(str).replaceAll("`", "&#096;");
+}
+
+/* -----------------------
+   Boot
+------------------------ */
 function boot(){
   initSelectors();
   initTabs();
   initDrawer();
   render();
 }
-
 boot();
