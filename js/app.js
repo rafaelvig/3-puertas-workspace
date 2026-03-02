@@ -200,19 +200,42 @@ function wireAccordion(root, blockId){
     });
   });
 
-  // actions (delegado)
+  // acciones (nota, link, upload)
   root.addEventListener("click", (e) => {
     const actionBtn = e.target.closest("button[data-action]");
     if(!actionBtn) return;
 
     const item = actionBtn.closest(".acc-item");
     const subName = item?.getAttribute("data-sub");
-    const action = actionBtn.getAttribute("data-action");
     if(!item || !subName) return;
 
+    const action = actionBtn.getAttribute("data-action");
     if(action === "note") onAddNote(blockId, subName, item);
     if(action === "link") onAddLink(blockId, subName, item);
     if(action === "upload") onUpload(blockId, subName, item);
+  });
+
+  // eliminación individual
+  root.addEventListener("click", (e) => {
+    const delBtn = e.target.closest("[data-del]");
+    if(!delBtn) return;
+
+    const type = delBtn.getAttribute("data-del");
+    const index = Number(delBtn.getAttribute("data-index"));
+    const item = delBtn.closest(".acc-item");
+    const subName = item?.getAttribute("data-sub");
+    const bId = item?.getAttribute("data-block");
+    if(!item || !subName || !bId) return;
+
+    const store = loadStore();
+    const node = ensureSubNode(store, bId, subName);
+
+    if(type === "note") node.notes.splice(index, 1);
+    if(type === "link") node.links.splice(index, 1);
+    if(type === "file") node.files.splice(index, 1);
+
+    saveStore(store);
+    refreshSubUI(bId, subName, item);
   });
 }
 
@@ -282,30 +305,56 @@ function renderMiniList(node){
     return `Sin contenido cargado`;
   }
 
+  function delBtn(type, index){
+    return `<button 
+              data-del="${type}" 
+              data-index="${index}" 
+              style="margin-left:8px; font-size:11px; opacity:.6; cursor:pointer; border:0; background:none; color:#ff6b6b;">
+              ✕
+            </button>`;
+  }
+
   const parts = [];
 
   if(notes.length){
-    parts.push(`<div style="margin-bottom:8px;"><span style="opacity:.8">Notas</span></div>`);
+    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Notas</span></div>`);
     parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${
-      notes.slice(0,3).map(n => `<li>${escapeHtml(trunc(n.text, 80))}</li>`).join("")
+      notes.map((n,i) => `
+        <li>
+          ${escapeHtml(trunc(n.text, 80))}
+          ${delBtn("note", i)}
+        </li>
+      `).join("")
     }</ul>`);
   }
 
   if(links.length){
-    parts.push(`<div style="margin-bottom:8px;"><span style="opacity:.8">Links</span></div>`);
+    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Links</span></div>`);
     parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${
-      links.slice(0,3).map(l => {
+      links.map((l,i) => {
         const label = l.title ? escapeHtml(trunc(l.title, 60)) : escapeHtml(trunc(l.url, 60));
         const href = escapeAttr(l.url);
-        return `<li><a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a></li>`;
+        return `
+          <li>
+            <a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">
+              ${label}
+            </a>
+            ${delBtn("link", i)}
+          </li>
+        `;
       }).join("")
     }</ul>`);
   }
 
   if(files.length){
-    parts.push(`<div style="margin-bottom:8px;"><span style="opacity:.8">Archivos</span></div>`);
+    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Archivos</span></div>`);
     parts.push(`<ul style="margin:0 0 0 16px; padding:0;">${
-      files.slice(0,3).map(f => `<li>${escapeHtml(trunc(f.name, 60))}</li>`).join("")
+      files.map((f,i) => `
+        <li>
+          ${escapeHtml(trunc(f.name, 60))}
+          ${delBtn("file", i)}
+        </li>
+      `).join("")
     }</ul>`);
   }
 
