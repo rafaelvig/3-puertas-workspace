@@ -31,13 +31,6 @@ window.CITIES_BY_PROVINCE = {
     "Belén",
     "Tinogasta"
   ],
-  "Chaco": [
-    "Resistencia",
-    "Barranqueras",
-    "Presidencia Roque Sáenz Peña",
-    "Villa Ángela",
-    "Charata"
-  ],
   "Chubut": [
     "Rawson",
     "Comodoro Rivadavia",
@@ -143,13 +136,6 @@ window.CITIES_BY_PROVINCE = {
     "Caleta Olivia",
     "El Calafate",
     "Pico Truncado"
-  ],
-  "Santa Fe": [
-    "Rosario",
-    "Santa Fe",
-    "Rafaela",
-    "Venado Tuerto",
-    "Reconquista"
   ],
   "Santiago del Estero": [
     "Santiago del Estero",
