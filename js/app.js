@@ -130,11 +130,19 @@ function openDrawer(blockId){
   $("#drawer").setAttribute("aria-hidden", "false");
 
   wireAccordion(body, block.id);
+  // mover foco al botón cerrar
+const closeBtn = $("#drawerClose");
+if(closeBtn) closeBtn.focus();
 }
 
 function closeDrawer(){
-  $("#drawer").classList.remove("is-open");
-  $("#drawer").setAttribute("aria-hidden", "true");
+  const drawer = $("#drawer");
+  drawer.classList.remove("is-open");
+  drawer.setAttribute("aria-hidden", "true");
+
+  // devolver foco a la pestaña activa
+  const activeTab = $(".tab.is-active");
+  if(activeTab) activeTab.focus();
 }
 
 function initDrawer(){
