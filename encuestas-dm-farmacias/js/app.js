@@ -730,3 +730,4 @@ btnNext.addEventListener("click", () => {
 });
 
 render();
+   } 
