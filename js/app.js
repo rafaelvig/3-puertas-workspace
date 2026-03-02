@@ -480,10 +480,9 @@ function renderMiniList(node){
 
     parts.push(`<ul style="margin:0 0 0 16px; padding:0;">${li}</ul>`);
   }
-  
+
   return parts.join("");
 }
-
 
 
 /* -----------------------
