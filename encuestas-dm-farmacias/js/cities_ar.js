@@ -21,12 +21,6 @@ window.CITIES_BY_PROVINCE = {
     "Bahía Blanca",
     "San Nicolás de los Arroyos",
     "Tandil"
-  "Buenos Aires": [
-    "La Plata",
-    "Mar del Plata",
-    "Bahía Blanca",
-    "San Nicolás de los Arroyos",
-    "Tandil"
   ],
   "Ciudad Autónoma de Buenos Aires": [
     "Ciudad Autónoma de Buenos Aires"
