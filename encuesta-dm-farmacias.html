@@ -44,7 +44,17 @@
   const SUPABASE_ANON_KEY = "xxxxx";
   const FORM_SLUG = "dm-farmacias";
 
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);  </script>
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
+  const sb = supabase.createClient(
+  "https://vjwxkruczzjnkzfjgrba.supabase.co",
+  "TU_ANON_KEY"
+);
 
+await sb.from("forms").select("id,slug,is_active").eq("slug","dm-farmacias");
+  
+  </script>
+
+
+  
 </body>
 </html>
