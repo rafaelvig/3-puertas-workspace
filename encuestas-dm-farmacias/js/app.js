@@ -658,7 +658,7 @@ new Sortable(leftList, {
   fallbackTolerance: 8,
   fallbackOnBody: true,
 
-  draggable: ".rank-item",
+  draggable: ".opt",
   ghostClass: "drag-ghost",
   dragClass: "drag-dragging",
 
@@ -679,7 +679,7 @@ new Sortable(rightList, {
   fallbackTolerance: 8,
   fallbackOnBody: true,
 
-  draggable: ".rank-item",
+  draggable: ".opt",
   ghostClass: "drag-ghost",
   dragClass: "drag-dragging",
 
