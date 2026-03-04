@@ -1,13 +1,11 @@
 /* app.js - encuestas-dm-farmacias
    - 1 pregunta por pantalla + barra de progreso
-   - Ranking drag&drop en Q12 (y reutilizable)
+   - Ranking drag&drop (reutilizable)
 */
 
-// Helpers de selección (NO jQuery)
+// Helpers
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-const qs  = (s, r = document) => r.querySelector(s);
-const qsa = (s, r = document) => Array.from(r.querySelectorAll(s));
 
 const provinces = [
   "Buenos Aires","Catamarca","Chaco","Chubut","Córdoba","Corrientes","Entre Ríos","Formosa","Jujuy","La Pampa",
@@ -16,7 +14,6 @@ const provinces = [
 ];
 
 const questions = [
-  // 1
   {
     id: "q1_tipo_farmacia",
     type: "single",
@@ -33,8 +30,6 @@ const questions = [
       "Otro"
     ]
   },
-
-  // 2
   {
     id: "q2_provincia",
     type: "select",
@@ -43,8 +38,6 @@ const questions = [
     help: "Seleccione una opción",
     options: provinces
   },
-
-  // 2b (ciudad con autocompletar por provincia)
   {
     id: "q2_ciudad",
     type: "datalist_city",
@@ -52,8 +45,6 @@ const questions = [
     title: "Ciudad",
     help: "Escriba y seleccione su ciudad/localidad"
   },
-
-  // 3
   {
     id: "q3_empleados",
     type: "single",
@@ -62,8 +53,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["1-3","4-6","7-10","Más de 10"]
   },
-
-  // 4
   {
     id: "q4_facturacion",
     type: "single",
@@ -72,8 +61,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Menos de $30M","$30M-$80M","$80M-$150M","Más de $150M","Prefiero no responder"]
   },
-
-  // 5
   {
     id: "q5_cuantas_droguerias",
     type: "single",
@@ -82,8 +69,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["1","2","3","Más de 3"]
   },
-
-  // 6
   {
     id: "q6_principal_60",
     type: "single",
@@ -92,8 +77,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Sí","No"]
   },
-
-  // 7
   {
     id: "q7_pct_obras_sociales",
     type: "single",
@@ -102,8 +85,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Menos de 30%","30-50%","50-70%","Más de 70%"]
   },
-
-  // 8
   {
     id: "q8_pct_pami",
     type: "single",
@@ -112,8 +93,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Menos de 20%","20-40%","40-60%","Más de 60%"]
   },
-
-  // 9
   {
     id: "q9_plazo_cobro",
     type: "single",
@@ -122,8 +101,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["0-30 días","31-60 días","61-90 días","Más de 90 días"]
   },
-
-  // 10
   {
     id: "q10_presion_flujo",
     type: "single",
@@ -132,8 +109,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Muy bajo","Bajo","Medio","Alto","Muy alto"]
   },
-
-  // 11
   {
     id: "q11_dificultad_financiera",
     type: "multi",
@@ -148,8 +123,6 @@ const questions = [
       "Ninguna relevante"
     ]
   },
-
-  // 12 - Ranking drag&drop (obligatorio)
   {
     id: "q12_ranking_criterios",
     type: "rank",
@@ -166,8 +139,6 @@ const questions = [
       "Plataforma digital"
     ]
   },
-
-  // 13
   {
     id: "q13_cambio_por_desc",
     type: "single",
@@ -183,8 +154,6 @@ const questions = [
       "Depende del proveedor actual"
     ]
   },
-
-  // 14
   {
     id: "q14_frec_comp_precios",
     type: "single",
@@ -200,8 +169,6 @@ const questions = [
       "Nunca comparo activamente"
     ]
   },
-
-  // 15
   {
     id: "q15_dispuesto_mejora",
     type: "single",
@@ -216,8 +183,6 @@ const questions = [
       "Trabajar activamente con ambos proveedores"
     ]
   },
-
-  // 16
   {
     id: "q16_quien_decide",
     type: "single",
@@ -233,8 +198,6 @@ const questions = [
       "Otro"
     ]
   },
-
-  // 17
   {
     id: "q17_quien_pide",
     type: "single",
@@ -250,8 +213,6 @@ const questions = [
       "Otro"
     ]
   },
-
-  // 18
   {
     id: "q18_tiempo_pedidos",
     type: "single",
@@ -266,8 +227,6 @@ const questions = [
       "Variable según el día"
     ]
   },
-
-  // 19
   {
     id: "q19_frec_entregas",
     type: "single",
@@ -282,8 +241,6 @@ const questions = [
       "Según disponibilidad"
     ]
   },
-
-  // 20
   {
     id: "q20_antiguedad",
     type: "single",
@@ -292,8 +249,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Menos de 1 año","1–3 años","3–5 años","Más de 5 años","Más de 10 años"]
   },
-
-  // 21
   {
     id: "q21_satisfaccion",
     type: "single",
@@ -302,8 +257,6 @@ const questions = [
     help: "En términos generales (precio, financiación, servicios y cumplimiento)",
     options: ["Muy insatisfecho","Insatisfecho","Neutral","Satisfecho","Muy satisfecho"]
   },
-
-  // 22
   {
     id: "q22_ranking_motivos_cambio",
     type: "rank",
@@ -320,8 +273,6 @@ const questions = [
       "Digitalización / plataforma"
     ]
   },
-
-  // 24
   {
     id: "q24_ranking_barreras",
     type: "rank",
@@ -338,8 +289,6 @@ const questions = [
       "No veo beneficios claros"
     ]
   },
-
-  // 25
   {
     id: "q25_nivel_cambio",
     type: "single",
@@ -354,8 +303,6 @@ const questions = [
       "Cambiaría totalmente de proveedor"
     ]
   },
-
-  // 26
   {
     id: "q26_urgencia_rent",
     type: "single",
@@ -364,8 +311,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Nada urgente","Poco urgente","Moderadamente urgente","Bastante urgente","Muy urgente"]
   },
-
-  // 27
   {
     id: "q27_canal_comunicacion",
     type: "multi",
@@ -381,8 +326,6 @@ const questions = [
       "Grupo de compras"
     ]
   },
-
-  // 28
   {
     id: "q28_comp_precios_tool",
     type: "single",
@@ -391,8 +334,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Sí, diariamente","Sí, ocasionalmente","Solo ante aumentos fuertes","No utilizo"]
   },
-
-  // 29
   {
     id: "q29_grupos_wp",
     type: "single",
@@ -406,8 +347,6 @@ const questions = [
       "No participo en grupos"
     ]
   },
-
-  // 30
   {
     id: "q30_dispuesto_digital",
     type: "single",
@@ -416,8 +355,6 @@ const questions = [
     help: "Que mejoren la gestión de compra y rentabilidad de su farmacia",
     options: ["Nada dispuesto","Poco dispuesto","Moderadamente dispuesto","Bastante dispuesto","Totalmente dispuesto"]
   },
-
-  // 31
   {
     id: "q31_deterioro_margen",
     type: "single",
@@ -426,8 +363,6 @@ const questions = [
     help: "Seleccione la opción correcta",
     options: ["Sí, fuerte deterioro","Sí, leve deterioro","Se mantiene estable","Mejoró","No lo tengo claro"]
   },
-
-  // 32
   {
     id: "q32_perdida_faltantes",
     type: "single",
@@ -438,17 +373,55 @@ const questions = [
   }
 ];
 
-const state = {
-  i: 0,
-  answers: {} // id -> value (string | array | ranking array)
-};
+const state = { i: 0, answers: {} };
 
-const card = qs("#card");
+const card = $("#card");
 const btnBack = $("#btnBack");
 const btnNext = $("#btnNext");
 const progressBar = $("#progressBar");
 const progressText = $("#progressText");
 const stepText = $("#stepText");
+
+function rankItem(text){
+  const d = document.createElement("div");
+  d.className = "rank-item";
+  d.textContent = text;
+  return d;
+}
+
+function normalizeStr(s){
+  return (s || "").toString().trim().toLowerCase();
+}
+
+function findProvinceForCity(city){
+  const map = window.CITIES_BY_PROVINCE || {};
+  const cN = normalizeStr(city);
+  if (!cN) return null;
+
+  for (const provKey of Object.keys(map)){
+    const arr = map[provKey];
+    if (!Array.isArray(arr)) continue;
+    if (arr.some(x => normalizeStr(x) === cN)) return provKey;
+  }
+  return null;
+}
+
+function validateCityCrossProvince(selectedProv, city){
+  const p = (selectedProv || "").trim();
+  const c = (city || "").trim();
+  if (!p || !c) return { ok: false, msg: "Complete provincia y ciudad." };
+
+  const provFound = findProvinceForCity(c);
+  if (!provFound) return { ok: true }; // ciudad no cargada -> permitir
+
+  if (provFound !== p){
+    return {
+      ok: false,
+      msg: `La ciudad "${c}" corresponde a "${provFound}" (según las ciudades cargadas). Revise provincia.`
+    };
+  }
+  return { ok: true };
+}
 
 function setProgress(){
   const total = questions.length;
@@ -472,13 +445,14 @@ function render(){
   const h = document.createElement("h2");
   h.className = "q-title";
   h.textContent = q.title;
-
-  const help = document.createElement("p");
-  help.className = "q-help";
-  help.textContent = q.help || "";
-
   card.appendChild(h);
-  if (q.help) card.appendChild(help);
+
+  if (q.help){
+    const help = document.createElement("p");
+    help.className = "q-help";
+    help.textContent = q.help;
+    card.appendChild(help);
+  }
 
   if (q.type === "single") renderSingle(q);
   else if (q.type === "multi") renderMulti(q);
@@ -486,48 +460,6 @@ function render(){
   else if (q.type === "text") renderText(q);
   else if (q.type === "rank") renderRank(q);
   else if (q.type === "datalist_city") renderDatalistCity(q);
-}
-
-function renderDatalistCity(q){
-  const prov = (state.answers.q2_provincia || "").trim();
-  const cities = (window.CITIES_BY_PROVINCE && window.CITIES_BY_PROVINCE[prov])
-    ? window.CITIES_BY_PROVINCE[prov]
-    : [];
-
-  const wrap = document.createElement("div");
-  wrap.className = "row";
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.id = q.id;
-  input.placeholder = prov ? "Escribí y elegí de la lista" : "Primero elegí provincia";
-  input.autocomplete = "off";
-  input.value = state.answers[q.id] ?? "";
-  input.disabled = !prov;
-
-  const listId = `dl_${q.id}`;
-  input.setAttribute("list", listId);
-
-  const dl = document.createElement("datalist");
-  dl.id = listId;
-
-  cities.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = c;
-    dl.appendChild(opt);
-  });
-
-  wrap.appendChild(input);
-  wrap.appendChild(dl);
-  card.appendChild(wrap);
-
-  // Mensaje simple si no hay ciudades cargadas para la provincia elegida
-  if (prov && cities.length === 0){
-    const hint = document.createElement("p");
-    hint.className = "q-help";
-    hint.textContent = "Todavía no hay ciudades cargadas para esta provincia. Puede escribirla manualmente.";
-    card.appendChild(hint);
-  }
 }
 
 function renderSingle(q){
@@ -582,9 +514,6 @@ function renderSelect(q){
   const row = document.createElement("div");
   row.className = "row";
 
-  const col = document.createElement("div");
-  col.className = "col";
-
   const sel = document.createElement("select");
   sel.id = q.id;
 
@@ -600,11 +529,9 @@ function renderSelect(q){
     sel.appendChild(o);
   });
 
-  const val = state.answers[q.id] ?? "";
-  sel.value = val;
+  sel.value = state.answers[q.id] ?? "";
 
-  col.appendChild(sel);
-  row.appendChild(col);
+  row.appendChild(sel);
   card.appendChild(row);
 }
 
@@ -615,6 +542,45 @@ function renderText(q){
   inp.placeholder = "Escriba aquí…";
   inp.value = state.answers[q.id] ?? "";
   card.appendChild(inp);
+}
+
+function renderDatalistCity(q){
+  const prov = (state.answers.q2_provincia || "").trim();
+  const cities = (window.CITIES_BY_PROVINCE && window.CITIES_BY_PROVINCE[prov]) ? window.CITIES_BY_PROVINCE[prov] : [];
+
+  const wrap = document.createElement("div");
+  wrap.className = "row";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.id = q.id;
+  input.placeholder = prov ? "Escribí y elegí de la lista" : "Primero elegí provincia";
+  input.autocomplete = "off";
+  input.value = state.answers[q.id] ?? "";
+  input.disabled = !prov;
+
+  const listId = `dl_${q.id}`;
+  input.setAttribute("list", listId);
+
+  const dl = document.createElement("datalist");
+  dl.id = listId;
+
+  cities.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c;
+    dl.appendChild(o);
+  });
+
+  wrap.appendChild(input);
+  wrap.appendChild(dl);
+  card.appendChild(wrap);
+
+  if (prov && cities.length === 0){
+    const hint = document.createElement("p");
+    hint.className = "q-help";
+    hint.textContent = "Todavía no hay ciudades cargadas para esta provincia. Puede escribirla manualmente.";
+    card.appendChild(hint);
+  }
 }
 
 function renderRank(q){
@@ -644,101 +610,37 @@ function renderRank(q){
   itemsLeft.forEach(txt => leftList.appendChild(rankItem(txt)));
   itemsRight.forEach(txt => rightList.appendChild(rankItem(txt)));
 
-new Sortable(leftList, {
-  group: "rank",
-  animation: 150,
+  new Sortable(leftList, {
+    group: "rank",
+    animation: 150,
+    swapThreshold: 0.65,
+    invertSwap: true,
+    invertedSwapThreshold: 0.5,
+    forceFallback: true,
+    fallbackTolerance: 8,
+    fallbackOnBody: true,
+    draggable: ".rank-item",
+    ghostClass: "drag-ghost",
+    dragClass: "drag-dragging",
+    filter: "button, a, input, textarea, select, label",
+    preventOnFilter: false
+  });
 
-  // mejora el “enganche” lateral
-  swapThreshold: 0.65,
-  invertSwap: true,
-  invertedSwapThreshold: 0.5,
-
-  // fallback más estable en muchos layouts (reduce rebotes)
-  forceFallback: true,
-  fallbackTolerance: 8,
-  fallbackOnBody: true,
-
-  draggable: ".rank-item",
-  ghostClass: "drag-ghost",
-  dragClass: "drag-dragging",
-
-  // evita que botones/inputs corten el drag si existieran
-  filter: "button, a, input, textarea, select, label",
-  preventOnFilter: false
-});
-
-new Sortable(rightList, {
-  group: "rank",
-  animation: 150,
-
-  swapThreshold: 0.65,
-  invertSwap: true,
-  invertedSwapThreshold: 0.5,
-
-  forceFallback: true,
-  fallbackTolerance: 8,
-  fallbackOnBody: true,
-
-  draggable: ".rank-item",
-  ghostClass: "drag-ghost",
-  dragClass: "drag-dragging",
-
-  filter: "button, a, input, textarea, select, label",
-  preventOnFilter: false
-});
-    
-function rankItem(text){
-  const d = document.createElement("div");
-  d.className = "rank-item";
-  d.textContent = text;
-  return d;
-}
-
-function normalizeStr(s){
-  return (s || "")
-    .toString()
-    .trim()
-    .toLowerCase();
-}
-
-// Busca en las listas cargadas qué provincia "conoce" esa ciudad.
-// Devuelve la provincia encontrada o null si no está en ninguna lista cargada.
-function findProvinceForCity(city){
-  const map = window.CITIES_BY_PROVINCE || {};
-  const cN = normalizeStr(city);
-  if (!cN) return null;
-
-  for (const provKey of Object.keys(map)){
-    const arr = map[provKey];
-    if (!Array.isArray(arr)) continue;
-    const hit = arr.some(x => normalizeStr(x) === cN);
-    if (hit) return provKey;
-  }
-  return null;
-}
-
-/*
-Regla:
-- Si la ciudad está en listas cargadas y pertenece a otra provincia -> invalida
-- Si no está en listas cargadas -> valida (ciudad aún no cargada)
-- Si está en la misma provincia -> valida
-*/
-function validateCityCrossProvince(selectedProv, city){
-  const p = (selectedProv || "").trim();
-  const c = (city || "").trim();
-  if (!p || !c) return { ok: false, msg: "Complete provincia y ciudad." };
-
-  const provFound = findProvinceForCity(c);
-  if (!provFound) return { ok: true }; // ciudad no cargada en listas -> permitir
-
-  if (provFound !== p){
-    return {
-      ok: false,
-      msg: `La ciudad "${c}" corresponde a "${provFound}" (según las ciudades cargadas). Revise provincia.`
-    };
-  }
-
-  return { ok: true };
+  new Sortable(rightList, {
+    group: "rank",
+    animation: 150,
+    swapThreshold: 0.65,
+    invertSwap: true,
+    invertedSwapThreshold: 0.5,
+    forceFallback: true,
+    fallbackTolerance: 8,
+    fallbackOnBody: true,
+    draggable: ".rank-item",
+    ghostClass: "drag-ghost",
+    dragClass: "drag-dragging",
+    filter: "button, a, input, textarea, select, label",
+    preventOnFilter: false
+  });
 }
 
 function readCurrentAnswer(){
@@ -750,9 +652,7 @@ function readCurrentAnswer(){
   }
 
   if (q.type === "multi"){
-    const picked = Array.from(document.querySelectorAll(`input[name="${q.id}"]:checked`))
-      .map(x => x.value);
-    return picked;
+    return Array.from(document.querySelectorAll(`input[name="${q.id}"]:checked`)).map(x => x.value);
   }
 
   if (q.type === "select"){
@@ -772,8 +672,7 @@ function readCurrentAnswer(){
 
   if (q.type === "rank"){
     const rightList = $("#rankRight");
-    const items = rightList ? Array.from(rightList.querySelectorAll(".rank-item")).map(x => x.textContent) : [];
-    return items;
+    return rightList ? Array.from(rightList.querySelectorAll(".rank-item")).map(x => x.textContent) : [];
   }
 
   return null;
@@ -783,34 +682,23 @@ function validateAnswer(q, val){
   if (!q.required) return true;
 
   if (q.type === "single") return !!val;
-
-  if (q.type === "select")
-    return typeof val === "string" && val.length > 0;
-
-  if (q.type === "text")
-    return typeof val === "string" && val.length > 0;
+  if (q.type === "select") return typeof val === "string" && val.length > 0;
+  if (q.type === "text") return typeof val === "string" && val.length > 0;
 
   if (q.type === "datalist_city"){
     if (!(typeof val === "string" && val.length > 0)) return false;
-
     const selectedProv = state.answers.q2_provincia || "";
     const check = validateCityCrossProvince(selectedProv, val);
-
-    if (!check.ok){
-      alert(check.msg);
-      return false;
-    }
+    if (!check.ok){ alert(check.msg); return false; }
     return true;
   }
 
-  if (q.type === "multi")
-    return Array.isArray(val) && val.length > 0;
-
-  if (q.type === "rank")
-    return Array.isArray(val) && val.length === q.items.length;
+  if (q.type === "multi") return Array.isArray(val) && val.length > 0;
+  if (q.type === "rank") return Array.isArray(val) && val.length === q.items.length;
 
   return true;
 }
+
 function saveCurrent(){
   const q = questions[state.i];
   const val = readCurrentAnswer();
@@ -826,10 +714,7 @@ function saveCurrent(){
 
 btnBack.addEventListener("click", () => {
   if (!saveCurrent()) return;
-  if (state.i > 0){
-    state.i--;
-    render();
-  }
+  if (state.i > 0){ state.i--; render(); }
 });
 
 btnNext.addEventListener("click", () => {
@@ -841,7 +726,6 @@ btnNext.addEventListener("click", () => {
     return;
   }
 
-  // Finalizar: acá después lo conectamos a Supabase (insert)
   console.log("RESPUESTAS:", state.answers);
   alert("Gracias. Encuesta completada.");
 });
