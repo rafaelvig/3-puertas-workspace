@@ -679,7 +679,7 @@ new Sortable(rightList, {
   fallbackTolerance: 8,
   fallbackOnBody: true,
 
-  draggable: ".ramnk-item",
+  draggable: ".rank-item",
   ghostClass: "drag-ghost",
   dragClass: "drag-dragging",
 
