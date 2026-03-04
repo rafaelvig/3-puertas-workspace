@@ -644,9 +644,48 @@ function renderRank(q){
   itemsLeft.forEach(txt => leftList.appendChild(rankItem(txt)));
   itemsRight.forEach(txt => rightList.appendChild(rankItem(txt)));
 
-  new Sortable(leftList, { group: "rank", animation: 150 });
-  new Sortable(rightList, { group: "rank", animation: 150 });
-}
+new Sortable(leftList, {
+  group: "rank",
+  animation: 150,
+
+  // mejora el “enganche” lateral
+  swapThreshold: 0.65,
+  invertSwap: true,
+  invertedSwapThreshold: 0.5,
+
+  // fallback más estable en muchos layouts (reduce rebotes)
+  forceFallback: true,
+  fallbackTolerance: 8,
+  fallbackOnBody: true,
+
+  draggable: ".rank-item",
+  ghostClass: "drag-ghost",
+  dragClass: "drag-dragging",
+
+  // evita que botones/inputs corten el drag si existieran
+  filter: "button, a, input, textarea, select, label",
+  preventOnFilter: false
+});
+
+new Sortable(rightList, {
+  group: "rank",
+  animation: 150,
+
+  swapThreshold: 0.65,
+  invertSwap: true,
+  invertedSwapThreshold: 0.5,
+
+  forceFallback: true,
+  fallbackTolerance: 8,
+  fallbackOnBody: true,
+
+  draggable: ".rank-item",
+  ghostClass: "drag-ghost",
+  dragClass: "drag-dragging",
+
+  filter: "button, a, input, textarea, select, label",
+  preventOnFilter: false
+});
 
 function rankItem(text){
   const d = document.createElement("div");
