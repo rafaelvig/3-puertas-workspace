@@ -686,7 +686,8 @@ new Sortable(rightList, {
   filter: "button, a, input, textarea, select, label",
   preventOnFilter: false
 });
-
+   
+} 
 function rankItem(text){
   const d = document.createElement("div");
   d.className = "rank-item";
