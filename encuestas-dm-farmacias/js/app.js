@@ -468,6 +468,8 @@ function renderSingle(q){
   q.options.forEach((opt, idx) => {
     const wrap = document.createElement("div");
     wrap.className = "opt";
+         wrap.setAttribute("role", "button");
+    wrap.tabIndex = 0;
 
     const input = document.createElement("input");
     input.type = "radio";
@@ -480,8 +482,22 @@ function renderSingle(q){
     label.htmlFor = input.id;
     label.textContent = opt;
 
-    wrap.appendChild(input);
+        wrap.appendChild(input);
     wrap.appendChild(label);
+
+    wrap.addEventListener("click", (e) => {
+      if (e.target.tagName !== "INPUT") {
+        input.checked = true;
+      }
+    });
+
+    wrap.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        input.checked = true;
+      }
+    });
+
     card.appendChild(wrap);
   });
 }
@@ -550,6 +566,8 @@ function renderDatalistCity(q){
 
   const wrap = document.createElement("div");
   wrap.className = "row";
+   wrap.setAttribute("role", "button");
+wrap.tabIndex = 0;
 
   const input = document.createElement("input");
   input.type = "text";
@@ -574,6 +592,19 @@ function renderDatalistCity(q){
   wrap.appendChild(input);
   wrap.appendChild(dl);
   card.appendChild(wrap);
+
+   wrap.addEventListener("click", (e) => {
+  if (e.target.tagName !== "INPUT") {
+    input.checked = true;
+  }
+});
+
+wrap.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    input.checked = true;
+  }
+});
 
   if (prov && cities.length === 0){
     const hint = document.createElement("p");
