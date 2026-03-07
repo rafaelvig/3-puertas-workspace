@@ -156,7 +156,10 @@ body{
   text-align:center;
   padding:40px 20px;
 }
-
+.finish{
+  text-align: center;
+  padding: 40px 20px;
+}
 .finish h2{
   font-size:28px;
   margin-bottom:10px;
