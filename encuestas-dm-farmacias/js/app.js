@@ -501,13 +501,14 @@ function renderSingle(q){
     card.appendChild(wrap);
   });
 }
-
 function renderMulti(q){
   const val = state.answers[q.id] ?? [];
 
   q.options.forEach((opt, idx) => {
     const wrap = document.createElement("div");
     wrap.className = "opt";
+    wrap.setAttribute("role", "button");
+    wrap.tabIndex = 0;
 
     const input = document.createElement("input");
     input.type = "checkbox";
@@ -522,10 +523,23 @@ function renderMulti(q){
 
     wrap.appendChild(input);
     wrap.appendChild(label);
+
+    wrap.addEventListener("click", (e) => {
+      if (e.target.tagName !== "INPUT") {
+        input.checked = !input.checked;
+      }
+    });
+
+    wrap.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        input.checked = !input.checked;
+      }
+    });
+
     card.appendChild(wrap);
   });
 }
-
 function renderSelect(q){
   const row = document.createElement("div");
   row.className = "row";
