@@ -610,37 +610,24 @@ function renderRank(q){
   itemsLeft.forEach(txt => leftList.appendChild(rankItem(txt)));
   itemsRight.forEach(txt => rightList.appendChild(rankItem(txt)));
 
-  new Sortable(leftList, {
-    group: "rank",
-    animation: 150,
-    swapThreshold: 0.65,
-    invertSwap: true,
-    invertedSwapThreshold: 0.5,
-    forceFallback: true,
-    fallbackTolerance: 8,
-    fallbackOnBody: true,
-    draggable: ".rank-item",
-    ghostClass: "drag-ghost",
-    dragClass: "drag-dragging",
-    filter: "button, a, input, textarea, select, label",
-    preventOnFilter: false
-  });
+ new Sortable(leftList, {
+  group: "rank",
+  animation: 180,
+  draggable: ".rank-item",
+  ghostClass: "drag-ghost",
+  dragClass: "drag-dragging",
+  sort: false,
+  swapThreshold: 0.2
+});
 
-  new Sortable(rightList, {
-    group: "rank",
-    animation: 150,
-    swapThreshold: 0.65,
-    invertSwap: true,
-    invertedSwapThreshold: 0.5,
-    forceFallback: true,
-    fallbackTolerance: 8,
-    fallbackOnBody: true,
-    draggable: ".rank-item",
-    ghostClass: "drag-ghost",
-    dragClass: "drag-dragging",
-    filter: "button, a, input, textarea, select, label",
-    preventOnFilter: false
-  });
+new Sortable(rightList, {
+  group: "rank",
+  animation: 180,
+  draggable: ".rank-item",
+  ghostClass: "drag-ghost",
+  dragClass: "drag-dragging",
+  swapThreshold: 0.2
+});
 }
 
 function readCurrentAnswer(){
@@ -713,8 +700,10 @@ function saveCurrent(){
 }
 
 btnBack.addEventListener("click", () => {
-  if (!saveCurrent()) return;
-  if (state.i > 0){ state.i--; render(); }
+  if (state.i > 0){
+    state.i--;
+    render();
+  }
 });
 
 btnNext.addEventListener("click", () => {
@@ -726,8 +715,34 @@ btnNext.addEventListener("click", () => {
     return;
   }
 
-  console.log("RESPUESTAS:", state.answers);
-  alert("Gracias. Encuesta completada.");
-});
+function showFinish(){
 
+  card.innerHTML = "";
+
+  const box = document.createElement("div");
+  box.className = "finish";
+
+  box.innerHTML = `
+    <h2>Muchas gracias</h2>
+    <p>
+      Agradecemos su tiempo para completar esta encuesta.
+    </p>
+    <p>
+      La información será analizada de forma agregada para comprender
+      mejor la estructura económica del canal farmacéutico.
+    </p>
+    <p>
+      Su participación es muy valiosa para este estudio.
+    </p>
+  `;
+
+  card.appendChild(box);
+
+  btnBack.style.display = "none";
+  btnNext.style.display = "none";
+
+  progressBar.style.width = "100%";
+  progressText.textContent = "100%";
+  stepText.textContent = "Encuesta finalizada";
+}
 render();
