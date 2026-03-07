@@ -169,3 +169,10 @@ body{
   color:var(--muted);
   margin-bottom:10px;
 }
+.opt{
+  cursor: pointer;
+}
+
+.opt:hover{
+  background: rgba(255,255,255,.06);
+}
