@@ -715,8 +715,10 @@ btnNext.addEventListener("click", () => {
     return;
   }
 
+  console.log("RESPUESTAS:", state.answers);
+  showFinish();
+});
 function showFinish(){
-
   card.innerHTML = "";
 
   const box = document.createElement("div");
@@ -724,16 +726,9 @@ function showFinish(){
 
   box.innerHTML = `
     <h2>Muchas gracias</h2>
-    <p>
-      Agradecemos su tiempo para completar esta encuesta.
-    </p>
-    <p>
-      La información será analizada de forma agregada para comprender
-      mejor la estructura económica del canal farmacéutico.
-    </p>
-    <p>
-      Su participación es muy valiosa para este estudio.
-    </p>
+    <p>Agradecemos su tiempo para completar esta encuesta.</p>
+    <p>La información será analizada de forma agregada para comprender mejor la estructura económica del canal farmacéutico.</p>
+    <p>Su participación es muy valiosa para este estudio.</p>
   `;
 
   card.appendChild(box);
