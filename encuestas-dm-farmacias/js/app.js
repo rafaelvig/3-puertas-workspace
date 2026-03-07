@@ -746,4 +746,4 @@ function showFinish(){
   stepText.textContent = "Encuesta finalizada";
 }
 render();
-   )
+   
