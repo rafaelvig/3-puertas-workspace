@@ -181,3 +181,19 @@ body{
   color:#555;
   margin-top:6px;
 }
+.time-estimate{
+  font-size:18px;
+  font-weight:600;
+  color:#1f2937;
+  margin-top:8px;
+  padding:6px 10px;
+  display:inline-block;
+  background:#f3f4f6;
+  border-radius:6px;
+  transition:all 0.2s ease;
+}
+
+.time-estimate:hover{
+  color:#ffffff;
+  background:#2563eb;
+}
