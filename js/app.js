@@ -6,6 +6,7 @@ const state = {
   companyId: null,
   channelId: null
 };
+
 /* -----------------------
    SUPABASE
 ------------------------ */
@@ -13,6 +14,8 @@ async function loadWorkspace(blockId, subtopic){
   const { data, error } = await sb
     .from("workspace_items")
     .select("*")
+    .eq("company_id", state.companyId)
+    .eq("channel_id", state.channelId)
     .eq("block_id", blockId)
     .eq("subtopic", subtopic)
     .order("created_at", { ascending: false });
@@ -25,8 +28,10 @@ async function loadWorkspace(blockId, subtopic){
   return data || [];
 }
 
-
 async function saveNote(blockId, subtopic, text){
+  const cleanText = (text || "").trim();
+  if(!cleanText) return null;
+
   const { data, error } = await sb
     .from("workspace_items")
     .insert({
@@ -35,7 +40,7 @@ async function saveNote(blockId, subtopic, text){
       block_id: blockId,
       subtopic: subtopic,
       type: "note",
-      content: text
+      content: cleanText
     })
     .select();
 
@@ -66,10 +71,10 @@ function saveStore(obj){
   localStorage.setItem(storageKey(), JSON.stringify(obj));
 }
 
-function ensureSubNode(store, blockId, subName){
+function ensureSubNode(store, blockId, subKey){
   store[blockId] = store[blockId] || {};
-  store[blockId][subName] = store[blockId][subName] || { notes: [], links: [], files: [] };
-  return store[blockId][subName];
+  store[blockId][subKey] = store[blockId][subKey] || { notes: [], links: [], files: [] };
+  return store[blockId][subKey];
 }
 
 function countItems(node){
@@ -100,6 +105,7 @@ function syncChannels(){
   const selChannel = $("#selChannel");
   const company = window.WS_CONFIG.companies.find(c => c.id === state.companyId);
   const channels = company?.channels || [];
+
   selChannel.innerHTML = channels.map(ch => `<option value="${ch.id}">${ch.name}</option>`).join("");
   state.channelId = channels[0]?.id || null;
 
@@ -111,15 +117,33 @@ function syncChannels(){
 }
 
 function initTabs(){
+  const strategyItems = window.WS_CONFIG.planes.strategy || [];
+  const systemItems = window.WS_CONFIG.planes.system || [];
+  const systemTab = document.querySelector('.tab[data-tab="system"]');
+
+  if(systemTab && systemItems.length === 0){
+    systemTab.style.display = "none";
+  }
+
+  if(strategyItems.length > 0){
+    state.tab = "strategy";
+  }
+
   $$(".tab").forEach(btn => {
     btn.addEventListener("click", () => {
+      const targetTab = btn.dataset.tab;
+      const items = window.WS_CONFIG.planes[targetTab] || [];
+      if(items.length === 0) return;
+
       $$(".tab").forEach(b => {
         b.classList.remove("is-active");
         b.setAttribute("aria-selected", "false");
       });
+
       btn.classList.add("is-active");
       btn.setAttribute("aria-selected", "true");
-      state.tab = btn.dataset.tab;
+      state.tab = targetTab;
+
       render();
       closeDrawer();
     });
@@ -134,11 +158,11 @@ function render(){
   const items = window.WS_CONFIG.planes[state.tab] || [];
 
   grid.innerHTML = items.map(item => `
-    <article class="card" data-id="${item.id}">
-      <div class="card-title">${item.title}</div>
-      <div class="card-desc">${item.desc}</div>
+    <article class="card" data-id="${escapeAttr(item.id)}">
+      <div class="card-title">${escapeHtml(item.title)}</div>
+      <div class="card-desc">${escapeHtml(item.desc)}</div>
       <div class="card-meta">
-        <span class="tag">${item.id}</span>
+        <span class="tag">${escapeHtml(item.id)}</span>
         <span class="tag">${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}</span>
       </div>
     </article>
@@ -160,7 +184,7 @@ function openDrawer(blockId){
   const company = window.WS_CONFIG.companies.find(c => c.id === state.companyId);
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
 
-  $("#drawerTitle").textContent = `${block.id}. ${block.title}`;
+  $("#drawerTitle").textContent = block.title;
   $("#drawerMeta").textContent = `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
 
   const body = $("#drawerBody");
@@ -170,9 +194,9 @@ function openDrawer(blockId){
   $("#drawer").setAttribute("aria-hidden", "false");
 
   wireAccordion(body, block.id);
-  // mover foco al botón cerrar
-const closeBtn = $("#drawerClose");
-if(closeBtn) closeBtn.focus();
+
+  const closeBtn = $("#drawerClose");
+  if(closeBtn) closeBtn.focus();
 }
 
 function closeDrawer(){
@@ -180,7 +204,6 @@ function closeDrawer(){
   drawer.classList.remove("is-open");
   drawer.setAttribute("aria-hidden", "true");
 
-  // devolver foco a la pestaña activa
   const activeTab = $(".tab.is-active");
   if(activeTab) activeTab.focus();
 }
@@ -188,6 +211,7 @@ function closeDrawer(){
 function initDrawer(){
   $("#drawerClose").addEventListener("click", closeDrawer);
   $("#drawerBackdrop").addEventListener("click", closeDrawer);
+
   document.addEventListener("keydown", (e) => {
     if(e.key === "Escape") closeDrawer();
   });
@@ -200,14 +224,28 @@ function renderAccordion(block){
   const store = loadStore();
   const subs = block.subs || [];
 
-  const accItems = subs.map((subName) => {
-    const node = ensureSubNode(store, block.id, subName);
+  if(subs.length === 0){
+    return `
+      <div class="accordion">
+        <div class="acc-item is-open">
+          <div class="acc-body" style="display:block;">
+            <div class="mini">Sin subitems cargados</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const accItems = subs.map((sub) => {
+    const subKey = sub.id;
+    const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
+    const node = ensureSubNode(store, block.id, subKey);
     const cnt = countItems(node);
 
     return `
-      <div class="acc-item" data-sub="${escapeAttr(subName)}" data-block="${escapeAttr(block.id)}">
+      <div class="acc-item" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
         <button class="acc-header" type="button">
-          <span class="acc-title">${escapeHtml(subName)}</span>
+          <span class="acc-title">${escapeHtml(subLabel)}</span>
           <span class="acc-count">${cnt}</span>
         </button>
 
@@ -240,8 +278,8 @@ function renderAccordion(block){
 
   return `<div class="accordion">${accItems}</div>`;
 }
+
 function wireAccordion(root, blockId){
-  // toggle
   $$(".acc-header", root).forEach(btn => {
     btn.addEventListener("click", () => {
       const item = btn.closest(".acc-item");
@@ -249,25 +287,24 @@ function wireAccordion(root, blockId){
     });
   });
 
-  // acciones
   root.addEventListener("click", (e) => {
     const actionBtn = e.target.closest("button[data-action]");
     if(!actionBtn) return;
 
     const item = actionBtn.closest(".acc-item");
-    const subName = item?.getAttribute("data-sub");
+    const subKey = item?.getAttribute("data-sub");
     const realBlockId = item?.getAttribute("data-block");
-    if(!item || !subName || !realBlockId) return;
+    if(!item || !subKey || !realBlockId) return;
 
     const action = actionBtn.getAttribute("data-action");
 
     if(action === "upload"){
-      onUpload(realBlockId, subName, item);
+      onUpload(realBlockId, subKey, item);
       return;
     }
 
     if(action === "link"){
-      onAddLink(realBlockId, subName, item);
+      onAddLink(realBlockId, subKey, item);
       return;
     }
 
@@ -287,35 +324,40 @@ function wireAccordion(root, blockId){
       return;
     }
 
-if(action === "note-save-new"){
-  const ta = $(".note-new-text", item);
-  const text = (ta?.value || "").trim();
-  if(!text) return;
+    if(action === "note-save-new"){
+      const ta = $(".note-new-text", item);
+      const text = (ta?.value || "").trim();
+      if(!text) return;
 
-  saveNote(realBlockId, subName, text)
-    .then(() => {
-      if(ta) ta.value = "";
-      const box = $(".note-compose", item);
-      if(box) box.style.display = "none";
-      alert("Nota guardada en Supabase");
-    })
-    .catch(err => {
-      console.error("note-save-new error:", err);
-      alert("Error al guardar la nota");
-    });
+      saveNote(realBlockId, subKey, text)
+        .then((saved) => {
+          const store = loadStore();
+          const node = ensureSubNode(store, realBlockId, subKey);
+          node.notes.unshift({ text, ts: Date.now(), remoteId: saved?.id || null });
+          saveStore(store);
 
-  return;
-}
+          if(ta) ta.value = "";
+          const box = $(".note-compose", item);
+          if(box) box.style.display = "none";
+
+          refreshSubUI(realBlockId, subKey, item);
+        })
+        .catch(err => {
+          console.error("note-save-new error:", err);
+          alert("Error al guardar la nota");
+        });
+
+      return;
+    }
   });
 
-  // editar / guardar / cancelar nota existente
   root.addEventListener("click", (e) => {
     const item = e.target.closest(".acc-item");
     if(!item) return;
 
-    const subName = item.getAttribute("data-sub");
+    const subKey = item.getAttribute("data-sub");
     const realBlockId = item.getAttribute("data-block");
-    if(!subName || !realBlockId) return;
+    if(!subKey || !realBlockId) return;
 
     const btnEdit = e.target.closest("[data-note-edit]");
     if(btnEdit){
@@ -336,7 +378,7 @@ if(action === "note-save-new"){
       const box = item.querySelector(`[data-note-editbox="${idx}"]`);
       if(box) box.style.display = "none";
       if(view) view.style.display = "block";
-      refreshSubUI(realBlockId, subName, item);
+      refreshSubUI(realBlockId, subKey, item);
       return;
     }
 
@@ -349,66 +391,53 @@ if(action === "note-save-new"){
       if(!text) return;
 
       const store = loadStore();
-      const node = ensureSubNode(store, realBlockId, subName);
+      const node = ensureSubNode(store, realBlockId, subKey);
       if(node.notes?.[idx]) node.notes[idx].text = text;
       saveStore(store);
 
-      refreshSubUI(realBlockId, subName, item);
+      refreshSubUI(realBlockId, subKey, item);
       return;
     }
   });
 
-  // eliminación individual (nota/link/archivo)
   root.addEventListener("click", (e) => {
     const delBtn = e.target.closest("[data-del]");
     if(!delBtn) return;
 
     const item = delBtn.closest(".acc-item");
-    const subName = item?.getAttribute("data-sub");
+    const subKey = item?.getAttribute("data-sub");
     const realBlockId = item?.getAttribute("data-block");
-    if(!item || !subName || !realBlockId) return;
+    if(!item || !subKey || !realBlockId) return;
 
     const type = delBtn.getAttribute("data-del");
     const index = Number(delBtn.getAttribute("data-index"));
 
     const store = loadStore();
-    const node = ensureSubNode(store, realBlockId, subName);
+    const node = ensureSubNode(store, realBlockId, subKey);
 
     if(type === "note") node.notes.splice(index, 1);
     if(type === "link") node.links.splice(index, 1);
     if(type === "file") node.files.splice(index, 1);
 
     saveStore(store);
-    refreshSubUI(realBlockId, subName, item);
+    refreshSubUI(realBlockId, subKey, item);
   });
 }
 
-function onAddNote(blockId, subName, accItem){
-  const text = prompt("Escribí la nota:");
-  if(!text || !text.trim()) return;
-
-  const store = loadStore();
-  const node = ensureSubNode(store, blockId, subName);
-  node.notes.unshift({ text: text.trim(), ts: Date.now() });
-  saveStore(store);
-
-  refreshSubUI(blockId, subName, accItem);
-}
-
-function onAddLink(blockId, subName, accItem){
+function onAddLink(blockId, subKey, accItem){
   const url = prompt("Pegá la URL del link:");
   if(!url || !url.trim()) return;
 
   const title = prompt("Título del link (opcional):") || "";
   const store = loadStore();
-  const node = ensureSubNode(store, blockId, subName);
+  const node = ensureSubNode(store, blockId, subKey);
   node.links.unshift({ url: url.trim(), title: title.trim(), ts: Date.now() });
   saveStore(store);
 
-  refreshSubUI(blockId, subName, accItem);
+  refreshSubUI(blockId, subKey, accItem);
 }
 
-function onUpload(blockId, subName, accItem){
+function onUpload(blockId, subKey, accItem){
   const input = $(".file-input", accItem);
   if(!input) return;
 
@@ -418,20 +447,19 @@ function onUpload(blockId, subName, accItem){
     if(!f) return;
 
     const store = loadStore();
-    const node = ensureSubNode(store, blockId, subName);
-    // Mock: guardamos nombre y size (no sube a ningún lado)
+    const node = ensureSubNode(store, blockId, subKey);
     node.files.unshift({ name: f.name, size: f.size, ts: Date.now() });
     saveStore(store);
 
-    refreshSubUI(blockId, subName, accItem);
+    refreshSubUI(blockId, subKey, accItem);
   };
 
   input.click();
 }
 
-function refreshSubUI(blockId, subName, accItem){
+function refreshSubUI(blockId, subKey, accItem){
   const store = loadStore();
-  const node = ensureSubNode(store, blockId, subName);
+  const node = ensureSubNode(store, blockId, subKey);
 
   const cntEl = $(".acc-count", accItem);
   if(cntEl) cntEl.textContent = String(countItems(node));
@@ -526,7 +554,6 @@ function renderMiniList(node){
   return parts.join("");
 }
 
-
 /* -----------------------
    Utils (safe)
 ------------------------ */
@@ -557,4 +584,5 @@ function boot(){
   initDrawer();
   render();
 }
+
 boot();
