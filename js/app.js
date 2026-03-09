@@ -286,23 +286,20 @@ function wireAccordion(root, blockId){
       return;
     }
 
-    if(action === "note-save-new"){
-      const ta = $(".note-new-text", item);
-      const text = (ta?.value || "").trim();
-      if(!text) return;
+  if(action === "note-save-new"){
+  const ta = $(".note-new-text", item);
+  const text = (ta?.value || "").trim();
+  if(!text) return;
 
-      const store = loadStore();
-      const node = ensureSubNode(store, realBlockId, subName);
-      node.notes.unshift({ text, ts: Date.now() });
-      saveStore(store);
+  await saveNote(realBlockId, subName, text);
 
-      if(ta) ta.value = "";
-      const box = $(".note-compose", item);
-      if(box) box.style.display = "none";
+  if(ta) ta.value = "";
+  const box = $(".note-compose", item);
+  if(box) box.style.display = "none";
 
-      refreshSubUI(realBlockId, subName, item);
-      return;
-    }
+  refreshSubUI(realBlockId, subName, item);
+  return;
+}
   });
 
   // editar / guardar / cancelar nota existente
