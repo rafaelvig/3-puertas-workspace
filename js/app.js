@@ -27,7 +27,6 @@ async function loadWorkspace(blockId, subtopic){
 
 
 async function saveNote(blockId, subtopic, text){
-
   const { data, error } = await sb
     .from("workspace_items")
     .insert({
@@ -35,8 +34,15 @@ async function saveNote(blockId, subtopic, text){
       subtopic: subtopic,
       type: "note",
       content: text
-    });
+    })
+    .select();
 
+  if(error){
+    console.error("saveNote error:", error);
+    return null;
+  }
+
+  return data?.[0] || null;
 }
 
 
