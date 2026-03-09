@@ -30,6 +30,8 @@ async function saveNote(blockId, subtopic, text){
   const { data, error } = await sb
     .from("workspace_items")
     .insert({
+      company_id: state.companyId,
+      channel_id: state.channelId,
       block_id: blockId,
       subtopic: subtopic,
       type: "note",
@@ -44,7 +46,6 @@ async function saveNote(blockId, subtopic, text){
 
   return data?.[0] || null;
 }
-
 
 /* -----------------------
    Storage (local)
@@ -286,18 +287,23 @@ function wireAccordion(root, blockId){
       return;
     }
 
-  if(action === "note-save-new"){
+if(action === "note-save-new"){
   const ta = $(".note-new-text", item);
   const text = (ta?.value || "").trim();
   if(!text) return;
 
-  saveNote(realBlockId, subName, text);
+  saveNote(realBlockId, subName, text)
+    .then(() => {
+      if(ta) ta.value = "";
+      const box = $(".note-compose", item);
+      if(box) box.style.display = "none";
+      alert("Nota guardada en Supabase");
+    })
+    .catch(err => {
+      console.error("note-save-new error:", err);
+      alert("Error al guardar la nota");
+    });
 
-  if(ta) ta.value = "";
-  const box = $(".note-compose", item);
-  if(box) box.style.display = "none";
-
-  refreshSubUI(realBlockId, subName, item);
   return;
 }
   });
