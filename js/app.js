@@ -6,6 +6,39 @@ const state = {
   companyId: null,
   channelId: null
 };
+/* -----------------------
+   SUPABASE
+------------------------ */
+async function loadWorkspace(blockId, subtopic){
+  const { data, error } = await sb
+    .from("workspace_items")
+    .select("*")
+    .eq("block_id", blockId)
+    .eq("subtopic", subtopic)
+    .order("created_at", { ascending: false });
+
+  if(error){
+    console.error("loadWorkspace error:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+
+async function saveNote(blockId, subtopic, text){
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .insert({
+      block_id: blockId,
+      subtopic: subtopic,
+      type: "note",
+      content: text
+    });
+
+}
+
 
 /* -----------------------
    Storage (local)
