@@ -176,3 +176,8 @@ body{
 .opt:hover{
   background: rgba(255,255,255,.06);
 }
+.time-estimate{
+  font-size:14px;
+  color:#555;
+  margin-top:6px;
+}
