@@ -291,7 +291,7 @@ function wireAccordion(root, blockId){
   const text = (ta?.value || "").trim();
   if(!text) return;
 
-  await saveNote(realBlockId, subName, text);
+  saveNote(realBlockId, subName, text);
 
   if(ta) ta.value = "";
   const box = $(".note-compose", item);
