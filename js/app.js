@@ -7,6 +7,29 @@ const state = {
   channelId: null
 };
 
+function saveLastLoginEmail(email){
+  if(!email) return;
+  localStorage.setItem("workspace_last_email", email.toLowerCase());
+}
+
+function loadLastLoginEmail(){
+  return localStorage.getItem("workspace_last_email") || "";
+}
+
+function initLoginEmailSuggestion(){
+  const input = $("#loginEmail");
+  const datalist = $("#emailSuggestions");
+  if(!input || !datalist) return;
+
+  const lastEmail = loadLastLoginEmail();
+
+  if(lastEmail){
+    input.value = lastEmail;
+    datalist.innerHTML = `<option value="${escapeAttr(lastEmail)}"></option>`;
+  }
+}
+
+
 /* -----------------------
    SUPABASE
 ------------------------ */
@@ -604,6 +627,7 @@ function escapeAttr(str){
 async function sendMagicLink(){
   const email = ($("#loginEmail")?.value || "").trim().toLowerCase();
   if(!email) return;
+  saveLastLoginEmail(email);  
 
   const { error } = await sb.auth.signInWithOtp({
     email,
@@ -665,6 +689,7 @@ async function applyAuthGate(){
 
 async function boot(){
   $("#btnMagicLink")?.addEventListener("click", sendMagicLink);
+  initLoginEmailSuggestion();
 
   const ok = await applyAuthGate();
   if(!ok) return;
