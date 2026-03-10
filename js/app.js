@@ -80,6 +80,23 @@ function ensureSubNode(store, blockId, subKey){
 function countItems(node){
   return (node?.notes?.length || 0) + (node?.links?.length || 0) + (node?.files?.length || 0);
 }
+function getBlockProgress(block){
+  const store = loadStore();
+  const subs = block.subs || [];
+
+  let completed = 0;
+
+  subs.forEach(sub => {
+    const node = ensureSubNode(store, block.id, sub.id);
+    const total = countItems(node);
+    if(total > 0) completed++;
+  });
+
+  return {
+    completed,
+    total: subs.length
+  };
+}
 
 /* -----------------------
    Init: selectors + tabs
@@ -157,22 +174,26 @@ function render(){
   const grid = $("#cardsGrid");
   const items = window.WS_CONFIG.planes[state.tab] || [];
 
-  grid.innerHTML = items.map(item => `
-    <article class="card" data-id="${escapeAttr(item.id)}">
-      <div class="card-title">${escapeHtml(item.title)}</div>
-      <div class="card-desc">${escapeHtml(item.desc)}</div>
+grid.innerHTML = items.map(item => {
+
+  const progress = getBlockProgress(item);
+
+  return `
+    <article class="card" data-id="${item.id}">
+      <div class="card-title">${item.title}</div>
+      <div class="card-desc">${item.desc}</div>
+
+      <div class="card-progress">
+        ${progress.completed} / ${progress.total}
+      </div>
+
       <div class="card-meta">
-        <span class="tag">${escapeHtml(item.id)}</span>
+        <span class="tag">${item.id}</span>
         <span class="tag">${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}</span>
       </div>
     </article>
-  `).join("");
-
-  $$(".card", grid).forEach(card => {
-    card.addEventListener("click", () => openDrawer(card.dataset.id));
-  });
-}
-
+  `;
+}).join("");
 /* -----------------------
    Drawer
 ------------------------ */
