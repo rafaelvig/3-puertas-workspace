@@ -250,3 +250,49 @@ body{
   .select-wrap select{ min-width: 160px; }
   .card{ grid-column: span 12; }
 }
+
+/* fila cerrada */
+.acc-header{
+  padding:16px 18px;
+  transition:all .15s ease;
+}
+
+/* hover */
+.acc-header:hover{
+  background:rgba(255,255,255,0.04);
+}
+
+/* cuando está abierto */
+.acc-item.is-open .acc-header{
+  background:rgba(255,255,255,0.06);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+
+/* caja de trabajo */
+.acc-body{
+  background:rgba(255,255,255,0.03);
+  padding:18px;
+}
+
+/* contenedor de contenido */
+.mini{
+  border:1px dashed rgba(255,255,255,0.15);
+  border-radius:10px;
+  padding:14px;
+  margin-top:10px;
+}
+.btn{
+  padding:10px 16px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:white;
+  cursor:pointer;
+  transition:all .15s ease;
+}
+
+.btn:hover{
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.25);
+  transform:translateY(-1px);
+}
