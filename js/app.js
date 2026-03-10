@@ -33,6 +33,52 @@ function initLoginEmailSuggestion(){
 /* -----------------------
    SUPABASE
 ------------------------ */
+
+async function uploadFileToStorage(file, blockId, subKey){
+  const user = await getSessionUser();
+  if(!user?.id) throw new Error("No hay usuario autenticado");
+
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${state.companyId}/${state.channelId}/${blockId}/${subKey}/${Date.now()}_${safeName}`;
+
+  const { error: uploadError } = await sb
+    .storage
+    .from("workspace-files")
+    .upload(path, file, {
+      upsert: false
+    });
+
+  if(uploadError) throw uploadError;
+
+  const { data: signedData, error: signedError } = await sb
+    .storage
+    .from("workspace-files")
+    .createSignedUrl(path, 60 * 60 * 24 * 7);
+
+  if(signedError) throw signedError;
+
+  const { data, error: insertError } = await sb
+    .from("workspace_items")
+    .insert({
+      company_id: state.companyId,
+      channel_id: state.channelId,
+      block_id: blockId,
+      subtopic: subKey,
+      type: "file",
+      content: file.name,
+      file_path: path,
+      file_url: signedData.signedUrl,
+      created_by: user.id
+    })
+    .select()
+    .single();
+
+  if(insertError) throw insertError;
+
+  return data;
+}
+
+
 async function loadWorkspace(blockId, subtopic){
   const { data, error } = await sb
     .from("workspace_items")
@@ -491,16 +537,30 @@ function onUpload(blockId, subKey, accItem){
   if(!input) return;
 
   input.value = "";
-  input.onchange = () => {
+  input.onchange = async () => {
     const f = input.files?.[0];
     if(!f) return;
 
-    const store = loadStore();
-    const node = ensureSubNode(store, blockId, subKey);
-    node.files.unshift({ name: f.name, size: f.size, ts: Date.now() });
-    saveStore(store);
+    try {
+      const saved = await uploadFileToStorage(f, blockId, subKey);
 
-    refreshSubUI(blockId, subKey, accItem);
+      const store = loadStore();
+      const node = ensureSubNode(store, blockId, subKey);
+      node.files.unshift({
+        name: f.name,
+        size: f.size,
+        ts: Date.now(),
+        remoteId: saved.id,
+        url: saved.file_url,
+        path: saved.file_path
+      });
+      saveStore(store);
+
+      refreshSubUI(blockId, subKey, accItem);
+    } catch (err) {
+      console.error("upload error:", err);
+      alert("No se pudo subir el archivo.");
+    }
   };
 
   input.click();
@@ -588,14 +648,19 @@ function renderMiniList(node){
 
   if(files.length){
     parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Archivos</span></div>`);
-    const li = files.map((f,i) => {
-      return [
-        `<li>`,
-          escapeHtml(trunc(f.name, 60)),
-          delBtn("file", i),
-        `</li>`
-      ].join("");
-    }).join("");
+const li = files.map((f,i) => {
+  const label = escapeHtml(trunc(f.name, 60));
+  const href = f.url ? escapeAttr(f.url) : null;
+
+  return [
+    `<li>`,
+      href
+        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
+        : label,
+      delBtn("file", i),
+    `</li>`
+  ].join("");
+}).join("");
 
     parts.push(`<ul style="margin:0 0 0 16px; padding:0;">${li}</ul>`);
   }
