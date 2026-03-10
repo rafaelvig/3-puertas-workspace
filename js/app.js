@@ -557,10 +557,12 @@ function onUpload(blockId, subKey, accItem){
       saveStore(store);
 
       refreshSubUI(blockId, subKey, accItem);
-    } catch (err) {
-      console.error("upload error:", err);
-      alert("No se pudo subir el archivo.");
-    }
+    } 
+
+    catch (err) {
+  console.error("UPLOAD ERROR FULL:", err);
+  alert(err.message || "No se pudo subir el archivo.");
+}
   };
 
   input.click();
