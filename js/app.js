@@ -170,9 +170,6 @@ function initTabs(){
 /* -----------------------
    Cards
 ------------------------ */
-function render(){
-  const grid = $("#cardsGrid");
-  const items = window.WS_CONFIG.planes[state.tab] || [];
 
 function render(){
   const grid = $("#cardsGrid");
