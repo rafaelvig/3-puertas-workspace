@@ -601,10 +601,74 @@ function escapeAttr(str){
   return escapeHtml(str).replaceAll("`", "&#096;");
 }
 
+async function sendMagicLink(){
+  const email = ($("#loginEmail")?.value || "").trim().toLowerCase();
+  if(!email) return;
+
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: window.location.origin
+    }
+  });
+
+  $("#authMsg").textContent = error
+    ? "No se pudo enviar el link."
+    : "Te enviamos un link de acceso.";
+}
+
+async function getSessionUser(){
+  const { data, error } = await sb.auth.getSession();
+  if(error) return null;
+  return data?.session?.user || null;
+}
+
+async function isAuthorizedUser(email){
+  const { data, error } = await sb
+    .from("workspace_members")
+    .select("email,is_active")
+    .eq("email", email)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if(error) return false;
+  return !!data;
+}
+
+async function applyAuthGate(){
+  const user = await getSessionUser();
+
+  if(!user?.email){
+    $("#authBox").style.display = "block";
+    $("#appShell").style.display = "none";
+    return false;
+  }
+
+  const allowed = await isAuthorizedUser(user.email.toLowerCase());
+
+  if(!allowed){
+    $("#authBox").style.display = "block";
+    $("#appShell").style.display = "none";
+    $("#authMsg").textContent = "Tu email no está autorizado para este workspace.";
+    return false;
+  }
+
+  $("#authBox").style.display = "none";
+  $("#appShell").style.display = "block";
+  $("#sessionPill").textContent = `Sesión: ${user.email}`;
+  return true;
+}
+
 /* -----------------------
    Boot
 ------------------------ */
-function boot(){
+
+async function boot(){
+  $("#btnMagicLink")?.addEventListener("click", sendMagicLink);
+
+  const ok = await applyAuthGate();
+  if(!ok) return;
+
   initSelectors();
   initTabs();
   initDrawer();
@@ -612,3 +676,17 @@ function boot(){
 }
 
 boot();
+
+
+sb.auth.onAuthStateChange(async () => {
+  const ok = await applyAuthGate();
+  if(ok){
+    initSelectors();
+    initTabs();
+    initDrawer();
+    render();
+  }
+});
+
+
+
