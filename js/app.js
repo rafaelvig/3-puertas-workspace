@@ -174,26 +174,34 @@ function render(){
   const grid = $("#cardsGrid");
   const items = window.WS_CONFIG.planes[state.tab] || [];
 
-grid.innerHTML = items.map(item => {
+function render(){
+  const grid = $("#cardsGrid");
+  const items = window.WS_CONFIG.planes[state.tab] || [];
 
-  const progress = getBlockProgress(item);
+  grid.innerHTML = items.map(item => {
+    const progress = getBlockProgress(item);
 
-  return `
-    <article class="card" data-id="${item.id}">
-      <div class="card-title">${item.title}</div>
-      <div class="card-desc">${item.desc}</div>
+    return `
+      <article class="card" data-id="${item.id}">
+        <div class="card-title">${item.title}</div>
+        <div class="card-desc">${item.desc}</div>
 
-      <div class="card-progress">
-        ${progress.completed} / ${progress.total}
-      </div>
+        <div class="card-progress">
+          ${progress.completed} / ${progress.total}
+        </div>
 
-      <div class="card-meta">
-        <span class="tag">${item.id}</span>
-        <span class="tag">${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}</span>
-      </div>
-    </article>
-  `;
-}).join("");
+        <div class="card-meta">
+          <span class="tag">${item.id}</span>
+          <span class="tag">${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  $$(".card", grid).forEach(card => {
+    card.addEventListener("click", () => openDrawer(card.dataset.id));
+  });
+}
 /* -----------------------
    Drawer
 ------------------------ */
