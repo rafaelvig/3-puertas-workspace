@@ -751,7 +751,7 @@ btnBack.addEventListener("click", () => {
   }
 });
 
-btnNext.addEventListener("click", () => {
+btnNext.addEventListener("click", async () => {
   if (!saveCurrent()) return;
 
   if (state.i < questions.length - 1){
@@ -760,9 +760,64 @@ btnNext.addEventListener("click", () => {
     return;
   }
 
-  console.log("RESPUESTAS:", state.answers);
-  showFinish();
+  btnNext.disabled = true;
+btnNext.textContent = "Enviando...";
+
+const result = await submitSurveyResponse();
+
+btnNext.disabled = false;
+btnNext.textContent = "Siguiente";
+
+if(!result.ok){
+  alert(result.message);
+  return;
+}
+
+console.log("RESPUESTAS:", state.answers);
+showFinish();
 });
+
+async function submitSurveyResponse() {
+
+  const payload = {
+    survey: "dm-farmacias",
+    submitted_at: new Date().toISOString(),
+    pharmacy_name: ACCESS?.pharmacyName || null,
+    answers: state.answers
+  };
+
+  const { data, error } = await sb.rpc("submit_form_response", {
+    p_access_code: ACCESS.accessCode,
+    p_response_json: payload,
+    p_wants_reward: false,
+    p_reward_name: null,
+    p_reward_phone: null,
+    p_reward_email: null,
+    p_user_agent: navigator.userAgent
+  });
+
+  if (error) {
+    console.error("submitSurveyResponse error:", error);
+    return {
+      ok: false,
+      message: "Error al guardar la encuesta."
+    };
+  }
+
+  if (!data || data.ok !== true) {
+    return {
+      ok: false,
+      message: data?.message || "No se pudo guardar."
+    };
+  }
+
+  return {
+    ok: true,
+    responseId: data.response_id
+  };
+}
+
+
 function showFinish(){
   card.innerHTML = "";
 
