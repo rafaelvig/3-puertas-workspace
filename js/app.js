@@ -1,5 +1,5 @@
-const $ = (sel, root=document) => root.querySelector(sel);
-const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 const state = {
   tab: "strategy",
@@ -7,31 +7,42 @@ const state = {
   channelId: null
 };
 
-function saveLastLoginEmail(email){
-  if(!email) return;
+let sendingMagicLink = false;
+let authGateRunning = false;
+let appInitialized = false;
+let loginLoggedForSession = false;
+let drawerInitialized = false;
+
+/* -----------------------
+   Login helpers
+------------------------ */
+function saveLastLoginEmail(email) {
+  if (!email) return;
   localStorage.setItem("workspace_last_email", email.toLowerCase());
 }
 
-function loadLastLoginEmail(){
+function loadLastLoginEmail() {
   return localStorage.getItem("workspace_last_email") || "";
 }
 
-function initLoginEmailSuggestion(){
+function initLoginEmailSuggestion() {
   const input = $("#loginEmail");
   const datalist = $("#emailSuggestions");
-  if(!input || !datalist) return;
+  if (!input || !datalist) return;
 
   const lastEmail = loadLastLoginEmail();
 
-  if(lastEmail){
+  if (lastEmail) {
     input.value = lastEmail;
     datalist.innerHTML = `<option value="${escapeAttr(lastEmail)}"></option>`;
   }
 }
-async function logWorkspaceLogin(user){
 
+/* -----------------------
+   Auth logging
+------------------------ */
+async function logWorkspaceLogin(user) {
   try {
-
     const { error } = await sb
       .from("workspace_login_log")
       .insert({
@@ -40,23 +51,20 @@ async function logWorkspaceLogin(user){
         user_agent: navigator.userAgent
       });
 
-    if(error){
+    if (error) {
       console.error("login log error:", error);
     }
-
-  } catch(e){
+  } catch (e) {
     console.error("login log crash:", e);
   }
-
 }
 
 /* -----------------------
    SUPABASE
 ------------------------ */
-
-async function uploadFileToStorage(file, blockId, subKey){
+async function uploadFileToStorage(file, blockId, subKey) {
   const user = await getSessionUser();
-  if(!user?.id) throw new Error("No hay usuario autenticado");
+  if (!user?.id) throw new Error("No hay usuario autenticado");
 
   const safeName = file.name.replace(/[^\w.\-]+/g, "_");
   const path = `${state.companyId}/${state.channelId}/${blockId}/${subKey}/${Date.now()}_${safeName}`;
@@ -68,14 +76,14 @@ async function uploadFileToStorage(file, blockId, subKey){
       upsert: false
     });
 
-  if(uploadError) throw uploadError;
+  if (uploadError) throw uploadError;
 
   const { data: signedData, error: signedError } = await sb
     .storage
     .from("workspace-files")
     .createSignedUrl(path, 60 * 60 * 24 * 7);
 
-  if(signedError) throw signedError;
+  if (signedError) throw signedError;
 
   const { data, error: insertError } = await sb
     .from("workspace_items")
@@ -93,13 +101,12 @@ async function uploadFileToStorage(file, blockId, subKey){
     .select()
     .single();
 
-  if(insertError) throw insertError;
+  if (insertError) throw insertError;
 
   return data;
 }
 
-
-async function loadWorkspace(blockId, subtopic){
+async function loadWorkspace(blockId, subtopic) {
   const { data, error } = await sb
     .from("workspace_items")
     .select("*")
@@ -109,7 +116,7 @@ async function loadWorkspace(blockId, subtopic){
     .eq("subtopic", subtopic)
     .order("created_at", { ascending: false });
 
-  if(error){
+  if (error) {
     console.error("loadWorkspace error:", error);
     return [];
   }
@@ -117,9 +124,9 @@ async function loadWorkspace(blockId, subtopic){
   return data || [];
 }
 
-async function saveNote(blockId, subtopic, text){
+async function saveNote(blockId, subtopic, text) {
   const cleanText = (text || "").trim();
-  if(!cleanText) return null;
+  if (!cleanText) return null;
 
   const { data, error } = await sb
     .from("workspace_items")
@@ -127,13 +134,13 @@ async function saveNote(blockId, subtopic, text){
       company_id: state.companyId,
       channel_id: state.channelId,
       block_id: blockId,
-      subtopic: subtopic,
+      subtopic,
       type: "note",
       content: cleanText
     })
     .select();
 
-  if(error){
+  if (error) {
     console.error("saveNote error:", error);
     return null;
   }
@@ -144,32 +151,33 @@ async function saveNote(blockId, subtopic, text){
 /* -----------------------
    Storage (local)
 ------------------------ */
-function storageKey(){
+function storageKey() {
   return `3pws:${state.companyId}:${state.channelId}:${state.tab}`;
 }
 
-function loadStore(){
-  try{
+function loadStore() {
+  try {
     return JSON.parse(localStorage.getItem(storageKey()) || "{}");
-  }catch{
+  } catch {
     return {};
   }
 }
 
-function saveStore(obj){
+function saveStore(obj) {
   localStorage.setItem(storageKey(), JSON.stringify(obj));
 }
 
-function ensureSubNode(store, blockId, subKey){
+function ensureSubNode(store, blockId, subKey) {
   store[blockId] = store[blockId] || {};
   store[blockId][subKey] = store[blockId][subKey] || { notes: [], links: [], files: [] };
   return store[blockId][subKey];
 }
 
-function countItems(node){
+function countItems(node) {
   return (node?.notes?.length || 0) + (node?.links?.length || 0) + (node?.files?.length || 0);
 }
-function getBlockProgress(block){
+
+function getBlockProgress(block) {
   const store = loadStore();
   const subs = block.subs || [];
 
@@ -178,7 +186,7 @@ function getBlockProgress(block){
   subs.forEach(sub => {
     const node = ensureSubNode(store, block.id, sub.id);
     const total = countItems(node);
-    if(total > 0) completed++;
+    if (total > 0) completed++;
   });
 
   return {
@@ -190,11 +198,12 @@ function getBlockProgress(block){
 /* -----------------------
    Init: selectors + tabs
 ------------------------ */
-function initSelectors(){
-  const companies = window.WS_CONFIG.companies;
+function initSelectors() {
+  const companies = window.WS_CONFIG?.companies || [];
   const selCompany = $("#selCompany");
-  selCompany.innerHTML = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  if (!selCompany) return;
 
+  selCompany.innerHTML = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
   state.companyId = companies[0]?.id || null;
 
   selCompany.addEventListener("change", () => {
@@ -207,8 +216,10 @@ function initSelectors(){
   syncChannels();
 }
 
-function syncChannels(){
+function syncChannels() {
   const selChannel = $("#selChannel");
+  if (!selChannel) return;
+
   const company = window.WS_CONFIG.companies.find(c => c.id === state.companyId);
   const channels = company?.channels || [];
 
@@ -222,24 +233,24 @@ function syncChannels(){
   };
 }
 
-function initTabs(){
-  const strategyItems = window.WS_CONFIG.planes.strategy || [];
-  const systemItems = window.WS_CONFIG.planes.system || [];
+function initTabs() {
+  const strategyItems = window.WS_CONFIG?.planes?.strategy || [];
+  const systemItems = window.WS_CONFIG?.planes?.system || [];
   const systemTab = document.querySelector('.tab[data-tab="system"]');
 
-  if(systemTab && systemItems.length === 0){
+  if (systemTab && systemItems.length === 0) {
     systemTab.style.display = "none";
   }
 
-  if(strategyItems.length > 0){
+  if (strategyItems.length > 0) {
     state.tab = "strategy";
   }
 
   $$(".tab").forEach(btn => {
     btn.addEventListener("click", () => {
       const targetTab = btn.dataset.tab;
-      const items = window.WS_CONFIG.planes[targetTab] || [];
-      if(items.length === 0) return;
+      const items = window.WS_CONFIG?.planes?.[targetTab] || [];
+      if (items.length === 0) return;
 
       $$(".tab").forEach(b => {
         b.classList.remove("is-active");
@@ -259,10 +270,11 @@ function initTabs(){
 /* -----------------------
    Cards
 ------------------------ */
-
-function render(){
+function render() {
   const grid = $("#cardsGrid");
-  const items = window.WS_CONFIG.planes[state.tab] || [];
+  if (!grid) return;
+
+  const items = window.WS_CONFIG?.planes?.[state.tab] || [];
 
   grid.innerHTML = items.map(item => {
     const progress = getBlockProgress(item);
@@ -288,13 +300,14 @@ function render(){
     card.addEventListener("click", () => openDrawer(card.dataset.id));
   });
 }
+
 /* -----------------------
    Drawer
 ------------------------ */
-function openDrawer(blockId){
-  const items = window.WS_CONFIG.planes[state.tab] || [];
+function openDrawer(blockId) {
+  const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
-  if(!block) return;
+  if (!block) return;
 
   const company = window.WS_CONFIG.companies.find(c => c.id === state.companyId);
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
@@ -311,35 +324,40 @@ function openDrawer(blockId){
   wireAccordion(body, block.id);
 
   const closeBtn = $("#drawerClose");
-  if(closeBtn) closeBtn.focus();
+  if (closeBtn) closeBtn.focus();
 }
 
-function closeDrawer(){
+function closeDrawer() {
   const drawer = $("#drawer");
+  if (!drawer) return;
+
   drawer.classList.remove("is-open");
   drawer.setAttribute("aria-hidden", "true");
 
   const activeTab = $(".tab.is-active");
-  if(activeTab) activeTab.focus();
+  if (activeTab) activeTab.focus();
 }
 
-function initDrawer(){
-  $("#drawerClose").addEventListener("click", closeDrawer);
-  $("#drawerBackdrop").addEventListener("click", closeDrawer);
+function initDrawer() {
+  if (drawerInitialized) return;
+  drawerInitialized = true;
+
+  $("#drawerClose")?.addEventListener("click", closeDrawer);
+  $("#drawerBackdrop")?.addEventListener("click", closeDrawer);
 
   document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape") closeDrawer();
+    if (e.key === "Escape") closeDrawer();
   });
 }
 
 /* -----------------------
    Accordion render + wiring
 ------------------------ */
-function renderAccordion(block){
+function renderAccordion(block) {
   const store = loadStore();
   const subs = block.subs || [];
 
-  if(subs.length === 0){
+  if (subs.length === 0) {
     return `
       <div class="accordion">
         <div class="acc-item is-open">
@@ -394,55 +412,55 @@ function renderAccordion(block){
   return `<div class="accordion">${accItems}</div>`;
 }
 
-function wireAccordion(root, blockId){
+function wireAccordion(root) {
   $$(".acc-header", root).forEach(btn => {
     btn.addEventListener("click", () => {
       const item = btn.closest(".acc-item");
-      item.classList.toggle("is-open");
+      item?.classList.toggle("is-open");
     });
   });
 
   root.addEventListener("click", (e) => {
     const actionBtn = e.target.closest("button[data-action]");
-    if(!actionBtn) return;
+    if (!actionBtn) return;
 
     const item = actionBtn.closest(".acc-item");
     const subKey = item?.getAttribute("data-sub");
     const realBlockId = item?.getAttribute("data-block");
-    if(!item || !subKey || !realBlockId) return;
+    if (!item || !subKey || !realBlockId) return;
 
     const action = actionBtn.getAttribute("data-action");
 
-    if(action === "upload"){
+    if (action === "upload") {
       onUpload(realBlockId, subKey, item);
       return;
     }
 
-    if(action === "link"){
+    if (action === "link") {
       onAddLink(realBlockId, subKey, item);
       return;
     }
 
-    if(action === "note-open"){
+    if (action === "note-open") {
       const box = $(".note-compose", item);
-      if(box) box.style.display = "block";
+      if (box) box.style.display = "block";
       const ta = $(".note-new-text", item);
-      if(ta) ta.focus();
+      if (ta) ta.focus();
       return;
     }
 
-    if(action === "note-cancel-new"){
+    if (action === "note-cancel-new") {
       const box = $(".note-compose", item);
-      if(box) box.style.display = "none";
+      if (box) box.style.display = "none";
       const ta = $(".note-new-text", item);
-      if(ta) ta.value = "";
+      if (ta) ta.value = "";
       return;
     }
 
-    if(action === "note-save-new"){
+    if (action === "note-save-new") {
       const ta = $(".note-new-text", item);
       const text = (ta?.value || "").trim();
-      if(!text) return;
+      if (!text) return;
 
       saveNote(realBlockId, subKey, text)
         .then((saved) => {
@@ -451,9 +469,9 @@ function wireAccordion(root, blockId){
           node.notes.unshift({ text, ts: Date.now(), remoteId: saved?.id || null });
           saveStore(store);
 
-          if(ta) ta.value = "";
+          if (ta) ta.value = "";
           const box = $(".note-compose", item);
-          if(box) box.style.display = "none";
+          if (box) box.style.display = "none";
 
           refreshSubUI(realBlockId, subKey, item);
         })
@@ -468,46 +486,46 @@ function wireAccordion(root, blockId){
 
   root.addEventListener("click", (e) => {
     const item = e.target.closest(".acc-item");
-    if(!item) return;
+    if (!item) return;
 
     const subKey = item.getAttribute("data-sub");
     const realBlockId = item.getAttribute("data-block");
-    if(!subKey || !realBlockId) return;
+    if (!subKey || !realBlockId) return;
 
     const btnEdit = e.target.closest("[data-note-edit]");
-    if(btnEdit){
+    if (btnEdit) {
       const idx = Number(btnEdit.getAttribute("data-note-edit"));
       const view = item.querySelector(`[data-note-view="${idx}"]`);
       const box = item.querySelector(`[data-note-editbox="${idx}"]`);
-      if(view) view.style.display = "none";
-      if(box) box.style.display = "block";
+      if (view) view.style.display = "none";
+      if (box) box.style.display = "block";
       const ta = box?.querySelector("textarea");
-      if(ta) ta.focus();
+      if (ta) ta.focus();
       return;
     }
 
     const btnCancel = e.target.closest("[data-note-cancel]");
-    if(btnCancel){
+    if (btnCancel) {
       const idx = Number(btnCancel.getAttribute("data-note-cancel"));
       const view = item.querySelector(`[data-note-view="${idx}"]`);
       const box = item.querySelector(`[data-note-editbox="${idx}"]`);
-      if(box) box.style.display = "none";
-      if(view) view.style.display = "block";
+      if (box) box.style.display = "none";
+      if (view) view.style.display = "block";
       refreshSubUI(realBlockId, subKey, item);
       return;
     }
 
     const btnSave = e.target.closest("[data-note-save]");
-    if(btnSave){
+    if (btnSave) {
       const idx = Number(btnSave.getAttribute("data-note-save"));
       const box = item.querySelector(`[data-note-editbox="${idx}"]`);
       const ta = box?.querySelector("textarea");
       const text = (ta?.value || "").trim();
-      if(!text) return;
+      if (!text) return;
 
       const store = loadStore();
       const node = ensureSubNode(store, realBlockId, subKey);
-      if(node.notes?.[idx]) node.notes[idx].text = text;
+      if (node.notes?.[idx]) node.notes[idx].text = text;
       saveStore(store);
 
       refreshSubUI(realBlockId, subKey, item);
@@ -517,12 +535,12 @@ function wireAccordion(root, blockId){
 
   root.addEventListener("click", (e) => {
     const delBtn = e.target.closest("[data-del]");
-    if(!delBtn) return;
+    if (!delBtn) return;
 
     const item = delBtn.closest(".acc-item");
     const subKey = item?.getAttribute("data-sub");
     const realBlockId = item?.getAttribute("data-block");
-    if(!item || !subKey || !realBlockId) return;
+    if (!item || !subKey || !realBlockId) return;
 
     const type = delBtn.getAttribute("data-del");
     const index = Number(delBtn.getAttribute("data-index"));
@@ -530,18 +548,18 @@ function wireAccordion(root, blockId){
     const store = loadStore();
     const node = ensureSubNode(store, realBlockId, subKey);
 
-    if(type === "note") node.notes.splice(index, 1);
-    if(type === "link") node.links.splice(index, 1);
-    if(type === "file") node.files.splice(index, 1);
+    if (type === "note") node.notes.splice(index, 1);
+    if (type === "link") node.links.splice(index, 1);
+    if (type === "file") node.files.splice(index, 1);
 
     saveStore(store);
     refreshSubUI(realBlockId, subKey, item);
   });
 }
 
-function onAddLink(blockId, subKey, accItem){
+function onAddLink(blockId, subKey, accItem) {
   const url = prompt("Pegá la URL del link:");
-  if(!url || !url.trim()) return;
+  if (!url || !url.trim()) return;
 
   const title = prompt("Título del link (opcional):") || "";
   const store = loadStore();
@@ -552,14 +570,14 @@ function onAddLink(blockId, subKey, accItem){
   refreshSubUI(blockId, subKey, accItem);
 }
 
-function onUpload(blockId, subKey, accItem){
+function onUpload(blockId, subKey, accItem) {
   const input = $(".file-input", accItem);
-  if(!input) return;
+  if (!input) return;
 
   input.value = "";
   input.onchange = async () => {
     const f = input.files?.[0];
-    if(!f) return;
+    if (!f) return;
 
     try {
       const saved = await uploadFileToStorage(f, blockId, subKey);
@@ -577,34 +595,32 @@ function onUpload(blockId, subKey, accItem){
       saveStore(store);
 
       refreshSubUI(blockId, subKey, accItem);
-    } 
-
-    catch (err) {
-  console.error("UPLOAD ERROR FULL:", err);
-  alert(err.message || "No se pudo subir el archivo.");
-}
+    } catch (err) {
+      console.error("UPLOAD ERROR FULL:", err);
+      alert(err.message || "No se pudo subir el archivo.");
+    }
   };
 
   input.click();
 }
 
-function refreshSubUI(blockId, subKey, accItem){
+function refreshSubUI(blockId, subKey, accItem) {
   const store = loadStore();
   const node = ensureSubNode(store, blockId, subKey);
 
   const cntEl = $(".acc-count", accItem);
-  if(cntEl) cntEl.textContent = String(countItems(node));
+  if (cntEl) cntEl.textContent = String(countItems(node));
 
   const miniEl = $(".mini", accItem);
-  if(miniEl) miniEl.innerHTML = renderMiniList(node);
+  if (miniEl) miniEl.innerHTML = renderMiniList(node);
 }
 
-function renderMiniList(node){
+function renderMiniList(node) {
   const notes = node?.notes || [];
   const links = node?.links || [];
   const files = node?.files || [];
 
-  if(notes.length + links.length + files.length === 0){
+  if (notes.length + links.length + files.length === 0) {
     return "Sin contenido cargado";
   }
 
@@ -618,29 +634,29 @@ function renderMiniList(node){
     `<button data-note-edit="${index}"
       style="margin-left:8px; font-size:11px; opacity:.7; cursor:pointer; border:0; background:none; color:rgba(255,255,255,.8); text-decoration:underline;">Editar</button>`;
 
-  if(notes.length){
+  if (notes.length) {
     parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Notas</span></div>`);
-    const li = notes.map((n,i) => {
+    const li = notes.map((n, i) => {
       const textView = escapeHtml(trunc(n.text, 300));
       const textEdit = escapeHtml(n.text);
 
       return [
         `<li style="margin-bottom:8px;">`,
-          `<div class="note-view" data-note-view="${i}">`,
-            textView,
-            editBtn(i),
-            delBtn("note", i),
-          `</div>`,
-          `<div class="note-edit" data-note-editbox="${i}" style="display:none; margin-top:8px;">`,
-            `<textarea rows="4"`,
-              ` style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;">`,
-              textEdit,
-            `</textarea>`,
-            `<div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">`,
-              `<button class="btn" type="button" data-note-save="${i}">Guardar</button>`,
-              `<button class="btn" type="button" data-note-cancel="${i}">Cancelar</button>`,
-            `</div>`,
-          `</div>`,
+        `<div class="note-view" data-note-view="${i}">`,
+        textView,
+        editBtn(i),
+        delBtn("note", i),
+        `</div>`,
+        `<div class="note-edit" data-note-editbox="${i}" style="display:none; margin-top:8px;">`,
+        `<textarea rows="4"`,
+        ` style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;">`,
+        textEdit,
+        `</textarea>`,
+        `<div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">`,
+        `<button class="btn" type="button" data-note-save="${i}">Guardar</button>`,
+        `<button class="btn" type="button" data-note-cancel="${i}">Cancelar</button>`,
+        `</div>`,
+        `</div>`,
         `</li>`
       ].join("");
     }).join("");
@@ -648,19 +664,18 @@ function renderMiniList(node){
     parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
   }
 
-  if(links.length){
+  if (links.length) {
     parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Links</span></div>`);
-    const li = links.map((l,i) => {
+    const li = links.map((l, i) => {
       const label = l.title ? escapeHtml(trunc(l.title, 60)) : escapeHtml(trunc(l.url, 60));
       const href = escapeAttr(l.url);
 
       return [
         `<li>`,
-          `<a href="${href}" target="_blank" rel="noopener noreferrer"`,
-          ` style="color:inherit; text-decoration:underline; opacity:.9;">`,
-          label,
-          `</a>`,
-          delBtn("link", i),
+        `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">`,
+        label,
+        `</a>`,
+        delBtn("link", i),
         `</li>`
       ].join("");
     }).join("");
@@ -668,21 +683,21 @@ function renderMiniList(node){
     parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
   }
 
-  if(files.length){
+  if (files.length) {
     parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Archivos</span></div>`);
-const li = files.map((f,i) => {
-  const label = escapeHtml(trunc(f.name, 60));
-  const href = f.url ? escapeAttr(f.url) : null;
+    const li = files.map((f, i) => {
+      const label = escapeHtml(trunc(f.name, 60));
+      const href = f.url ? escapeAttr(f.url) : null;
 
-  return [
-    `<li>`,
-      href
-        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
-        : label,
-      delBtn("file", i),
-    `</li>`
-  ].join("");
-}).join("");
+      return [
+        `<li>`,
+        href
+          ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
+          : label,
+        delBtn("file", i),
+        `</li>`
+      ].join("");
+    }).join("");
 
     parts.push(`<ul style="margin:0 0 0 16px; padding:0;">${li}</ul>`);
   }
@@ -693,12 +708,12 @@ const li = files.map((f,i) => {
 /* -----------------------
    Utils (safe)
 ------------------------ */
-function trunc(s, n){
-  if(!s) return "";
-  return s.length > n ? s.slice(0, n-1) + "…" : s;
+function trunc(s, n) {
+  if (!s) return "";
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
-function escapeHtml(str){
+function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -707,14 +722,28 @@ function escapeHtml(str){
     .replaceAll("'", "&#039;");
 }
 
-function escapeAttr(str){
+function escapeAttr(str) {
   return escapeHtml(str).replaceAll("`", "&#096;");
 }
-async function sendMagicLink(){
-  const email = ($("#loginEmail").value || "").trim().toLowerCase();
-  if(!email) return;
 
+/* -----------------------
+   Auth
+------------------------ */
+async function sendMagicLink() {
+  const btn = $("#btnMagicLink");
+  const email = ($("#loginEmail")?.value || "").trim().toLowerCase();
+  if (!email) return;
+
+  if (sendingMagicLink) {
+    $("#authMsg").textContent = "Esperá unos segundos antes de volver a solicitar el link.";
+    return;
+  }
+
+  sendingMagicLink = true;
   saveLastLoginEmail(email);
+
+  if (btn) btn.disabled = true;
+  $("#authMsg").textContent = "Enviando link...";
 
   try {
     const { data, error } = await sb.auth.signInWithOtp({
@@ -724,7 +753,7 @@ async function sendMagicLink(){
       }
     });
 
-    console.log("signInWithOtp result:", { data, error });
+    console.log("signInWithOtp result:", { email, data, error });
 
     $("#authMsg").textContent = error
       ? `No se pudo enviar el link: ${error.message || "error desconocido"}`
@@ -732,16 +761,29 @@ async function sendMagicLink(){
   } catch (e) {
     console.error("sendMagicLink crash:", e);
     $("#authMsg").textContent = `Fallo inesperado: ${e?.message || e}`;
+  } finally {
+    window.setTimeout(() => {
+      sendingMagicLink = false;
+      if (btn) btn.disabled = false;
+    }, 60000);
   }
 }
 
-async function getSessionUser(){
-  const { data, error } = await sb.auth.getSession();
-  if(error) return null;
-  return data?.session?.user || null;
+async function getSessionUser() {
+  try {
+    const { data, error } = await sb.auth.getSession();
+    if (error) {
+      console.error("getSessionUser error:", error);
+      return null;
+    }
+    return data?.session?.user || null;
+  } catch (e) {
+    console.error("getSessionUser crash:", e);
+    return null;
+  }
 }
 
-async function isAuthorizedUser(email){
+async function isAuthorizedUser(email) {
   const normalizedEmail = (email || "").trim().toLowerCase();
 
   const { data, error } = await sb
@@ -753,7 +795,7 @@ async function isAuthorizedUser(email){
 
   console.log("isAuthorizedUser:", { normalizedEmail, data, error });
 
-  if(error){
+  if (error) {
     console.error("workspace_members auth error:", error);
     return false;
   }
@@ -761,59 +803,84 @@ async function isAuthorizedUser(email){
   return !!data;
 }
 
-async function applyAuthGate(){
-  const user = await getSessionUser();
+async function applyAuthGate() {
+  if (authGateRunning) return false;
+  authGateRunning = true;
 
-  if(!user?.email){
-    $("#authBox").style.display = "block";
-    $("#appShell").style.display = "none";
+  try {
+    const user = await getSessionUser();
+
+    if (!user?.email) {
+      $("#authBox").style.display = "block";
+      $("#appShell").style.display = "none";
+      $("#sessionPill").textContent = "Sesión: sin iniciar";
+      loginLoggedForSession = false;
+      return false;
+    }
+
+    const allowed = await isAuthorizedUser(user.email.toLowerCase());
+
+    if (!allowed) {
+      $("#authBox").style.display = "block";
+      $("#appShell").style.display = "none";
+      $("#authMsg").textContent = "Tu email no está autorizado para este workspace.";
+      $("#sessionPill").textContent = `Sesión: ${user.email}`;
+      loginLoggedForSession = false;
+      return false;
+    }
+
+    if (!loginLoggedForSession) {
+      await logWorkspaceLogin(user);
+      loginLoggedForSession = true;
+    }
+
+    $("#authBox").style.display = "none";
+    $("#appShell").style.display = "block";
+    $("#sessionPill").textContent = `Sesión: ${user.email}`;
+    return true;
+  } catch (e) {
+    console.error("applyAuthGate crash:", e);
     return false;
+  } finally {
+    authGateRunning = false;
   }
-
-  const allowed = await isAuthorizedUser(user.email.toLowerCase());
-
- if(!allowed){
-  $("#authBox").style.display = "block";
-  $("#appShell").style.display = "none";
-  $("#authMsg").textContent = "Tu email no está autorizado para este workspace.";
-  return false;
 }
 
-await logWorkspaceLogin(user);
-
-$("#authBox").style.display = "none";
-$("#appShell").style.display = "block";
-$("#sessionPill").textContent = `Sesión: ${user.email}`;
-
 /* -----------------------
-   Boot
+   App init
 ------------------------ */
-
-async function boot(){
-  $("#btnMagicLink")?.addEventListener("click", sendMagicLink);
-  initLoginEmailSuggestion();
-
-  const ok = await applyAuthGate();
-  if(!ok) return;
+function initApp() {
+  if (appInitialized) return;
+  appInitialized = true;
 
   initSelectors();
   initTabs();
   initDrawer();
+}
+
+async function boot() {
+  $("#btnMagicLink")?.addEventListener("click", sendMagicLink);
+  initLoginEmailSuggestion();
+
+  const ok = await applyAuthGate();
+  if (!ok) return;
+
+  initApp();
   render();
 }
 
 boot();
 
+sb.auth.onAuthStateChange(async (event) => {
+  console.log("auth state change:", event);
 
-sb.auth.onAuthStateChange(async () => {
+  if (event === "SIGNED_OUT") {
+    loginLoggedForSession = false;
+  }
+
   const ok = await applyAuthGate();
-  if(ok){
-    initSelectors();
-    initTabs();
-    initDrawer();
+  if (ok) {
+    initApp();
     render();
   }
 });
-
-
-
