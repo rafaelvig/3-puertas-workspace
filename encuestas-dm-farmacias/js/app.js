@@ -372,7 +372,7 @@ const questions = [
     options: ["Menos de 1% mensual","1–3% mensual","3–5% mensual","Más de 5% mensual","No lo tengo medido"]
   }
 ];
-
+let ACCESS = null;
 const state = { i: 0, answers: {} };
 
 const card = $("#card");
@@ -785,5 +785,23 @@ function showFinish(){
   progressText.textContent = "100%";
   stepText.textContent = "Encuesta finalizada";
 }
-render();
-   
+async function initSurveyAccess(){
+  const result = await validateAccessCode();
+
+  if(!result.ok){
+    document.body.innerHTML = `
+      <div style="max-width:600px;margin:80px auto;font-family:sans-serif;text-align:center">
+        <h2>Acceso inválido</h2>
+        <p>${result.message}</p>
+      </div>
+    `;
+    return;
+  }
+
+  ACCESS = result;
+  console.log("Farmacia validada:", ACCESS.pharmacyName);
+
+  render();
+}
+
+document.addEventListener("DOMContentLoaded", initSurveyAccess);   
