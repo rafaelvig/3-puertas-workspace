@@ -690,22 +690,29 @@ function escapeHtml(str){
 function escapeAttr(str){
   return escapeHtml(str).replaceAll("`", "&#096;");
 }
-
 async function sendMagicLink(){
-  const email = ($("#loginEmail")?.value || "").trim().toLowerCase();
+  const email = ($("#loginEmail").value || "").trim().toLowerCase();
   if(!email) return;
-  saveLastLoginEmail(email);  
 
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: window.location.origin
-    }
-  });
+  saveLastLoginEmail(email);
 
-  $("#authMsg").textContent = error
-    ? "No se pudo enviar el link."
-    : "Te enviamos un link de acceso.";
+  try {
+    const { data, error } = await sb.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin
+      }
+    });
+
+    console.log("signInWithOtp result:", { data, error });
+
+    $("#authMsg").textContent = error
+      ? `No se pudo enviar el link: ${error.message || "error desconocido"}`
+      : "Te enviamos un link de acceso.";
+  } catch (e) {
+    console.error("sendMagicLink crash:", e);
+    $("#authMsg").textContent = `Fallo inesperado: ${e?.message || e}`;
+  }
 }
 
 async function getSessionUser(){
@@ -715,14 +722,22 @@ async function getSessionUser(){
 }
 
 async function isAuthorizedUser(email){
+  const normalizedEmail = (email || "").trim().toLowerCase();
+
   const { data, error } = await sb
     .from("workspace_members")
     .select("email,is_active")
-    .eq("email", email)
+    .eq("email", normalizedEmail)
     .eq("is_active", true)
     .maybeSingle();
 
-  if(error) return false;
+  console.log("isAuthorizedUser:", { normalizedEmail, data, error });
+
+  if(error){
+    console.error("workspace_members auth error:", error);
+    return false;
+  }
+
   return !!data;
 }
 
