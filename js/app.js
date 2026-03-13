@@ -28,7 +28,27 @@ function initLoginEmailSuggestion(){
     datalist.innerHTML = `<option value="${escapeAttr(lastEmail)}"></option>`;
   }
 }
+async function logWorkspaceLogin(user){
 
+  try {
+
+    const { error } = await sb
+      .from("workspace_login_log")
+      .insert({
+        email: user.email,
+        full_name: user.user_metadata?.full_name || "",
+        user_agent: navigator.userAgent
+      });
+
+    if(error){
+      console.error("login log error:", error);
+    }
+
+  } catch(e){
+    console.error("login log crash:", e);
+  }
+
+}
 
 /* -----------------------
    SUPABASE
