@@ -772,18 +772,18 @@ async function applyAuthGate(){
 
   const allowed = await isAuthorizedUser(user.email.toLowerCase());
 
-  if(!allowed){
-    $("#authBox").style.display = "block";
-    $("#appShell").style.display = "none";
-    $("#authMsg").textContent = "Tu email no está autorizado para este workspace.";
-    return false;
-  }
-
-  $("#authBox").style.display = "none";
-  $("#appShell").style.display = "block";
-  $("#sessionPill").textContent = `Sesión: ${user.email}`;
-  return true;
+ if(!allowed){
+  $("#authBox").style.display = "block";
+  $("#appShell").style.display = "none";
+  $("#authMsg").textContent = "Tu email no está autorizado para este workspace.";
+  return false;
 }
+
+await logWorkspaceLogin(user);
+
+$("#authBox").style.display = "none";
+$("#appShell").style.display = "block";
+$("#sessionPill").textContent = `Sesión: ${user.email}`;
 
 /* -----------------------
    Boot
