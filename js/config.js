@@ -13,7 +13,10 @@ window.WS_CONFIG = {
       {
         id: "c01",
         title: "1. Definición de Buyer Persona.",
-        desc: "TOFU - 1. Estrategia y Segmentación (25%)",
+        desc: "TOFU - 1. Estrategia y Segmentación (25
+             title: "Modelo encuesta DM Farmacias",
+    file: "docs/encuesta-dm-farmacias-modelo.pdf"
+  },
         subs: [
           { id: "a", name: "Investigación de mercado y datos reales." },
           { id: "b", name: "Identificación de pain points (dolores)." },
