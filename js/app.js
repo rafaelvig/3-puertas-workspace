@@ -327,6 +327,26 @@ function openDrawer(blockId) {
   if (closeBtn) closeBtn.focus();
 }
 
+function renderSurveyBox(block){
+  if(!block?.survey?.file) return "";
+
+  return `
+    <div class="drawer-survey-box">
+      <div class="drawer-survey-title">${block.survey.title || "Modelo de encuesta"}</div>
+      <a
+        class="drawer-survey-btn"
+        href="${block.survey.file}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Ver modelo de encuesta
+      </a>
+    </div>
+  `;
+}
+
+
+
 function closeDrawer() {
   const drawer = $("#drawer");
   if (!drawer) return;
