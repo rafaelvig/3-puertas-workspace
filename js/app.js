@@ -304,7 +304,6 @@ function render() {
 /* -----------------------
    Drawer
 ------------------------ */
-
 function openDrawer(blockId) {
   const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
@@ -327,7 +326,6 @@ function openDrawer(blockId) {
   const closeBtn = $("#drawerClose");
   if (closeBtn) closeBtn.focus();
 }
-
 
 function renderSurveyButton(block, subId) {
   const file = block?.surveys?.[subId];
@@ -356,8 +354,6 @@ function renderSurveyButton(block, subId) {
   `;
 }
 
-
-
 function closeDrawer() {
   const drawer = $("#drawer");
   if (!drawer) return;
@@ -380,7 +376,6 @@ function initDrawer() {
     if (e.key === "Escape") closeDrawer();
   });
 }
-
 
 /* -----------------------
    Accordion render + wiring
@@ -444,6 +439,7 @@ function renderAccordion(block) {
 
   return `<div class="accordion">${accItems}</div>`;
 }
+
 function wireAccordion(root) {
   $$(".acc-header", root).forEach(btn => {
     btn.addEventListener("click", () => {
