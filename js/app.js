@@ -335,7 +335,7 @@ function renderSurveyButton(block, subId) {
   if (file) {
     return `
       <a
-        class="btn-survey active"
+        class="btn btn-survey active"
         href="${file}"
         target="_blank"
         rel="noopener noreferrer"
@@ -347,7 +347,7 @@ function renderSurveyButton(block, subId) {
 
   return `
     <button
-      class="btn-survey disabled"
+      class="btn btn-survey disabled"
       type="button"
       disabled
     >
@@ -355,6 +355,7 @@ function renderSurveyButton(block, subId) {
     </button>
   `;
 }
+
 
 
 function closeDrawer() {
@@ -419,7 +420,6 @@ function renderAccordion(block) {
             <button class="btn" type="button" data-action="link">Agregar link</button>
             <button class="btn" type="button" data-action="note-open">Agregar nota</button>
             ${renderSurveyButton(block, sub.id)}
-
           </div>
 
           <input class="file-input" type="file" style="display:none" />
@@ -444,7 +444,6 @@ function renderAccordion(block) {
 
   return `<div class="accordion">${accItems}</div>`;
 }
-
 function wireAccordion(root) {
   $$(".acc-header", root).forEach(btn => {
     btn.addEventListener("click", () => {
