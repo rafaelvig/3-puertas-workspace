@@ -10,21 +10,23 @@ window.WS_CONFIG = {
   ],
   planes: {
     strategy: [
-      {
-        id: "c01",
-        title: "1. Definición de Buyer Persona.",
-        desc: "TOFU - 1. Estrategia y Segmentación (25
-             title: "Modelo encuesta DM Farmacias",
+     {
+  id: "c01",
+  title: "1. Definición de Buyer Persona.",
+  desc: "TOFU - 1. Estrategia y Segmentación (25%)",
+  survey: {
+    title: "Modelo encuesta DM Farmacias",
     file: "docs/encuesta-dm-farmacias-modelo.pdf"
   },
-        subs: [
-          { id: "a", name: "Investigación de mercado y datos reales." },
-          { id: "b", name: "Identificación de pain points (dolores)." },
-          { id: "c", name: "Roles de decisión en B2B (comprador técnico, económico, usuario)." },
-          { id: "d", name: "Motivaciones y objeciones de compra." },
-          { id: "e", name: "Mapas de comportamiento digital." }
-        ]
-      },
+  subs: [
+    { id: "a", name: "Investigación de mercado y datos reales." },
+    { id: "b", name: "Identificación de pain points (dolores)." },
+    { id: "c", name: "Roles de decisión en B2B (comprador técnico, económico, usuario)." },
+    { id: "d", name: "Motivaciones y objeciones de compra." },
+    { id: "e", name: "Mapas de comportamiento digital." }
+  ]
+},
+
       {
         id: "c02",
         title: "2. Claridad de la Propuesta de Valor.",
