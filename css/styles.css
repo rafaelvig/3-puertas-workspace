@@ -348,3 +348,29 @@ body{
   transform: translateY(-1px);
 }
 
+.btn-survey{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:38px;
+  padding:0 12px;
+  border-radius:10px;
+  font-size:13px;
+  font-weight:600;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,.12);
+  margin-top:10px;
+}
+
+.btn-survey.active{
+  background:#4c6ef5;
+  color:#fff;
+}
+
+.btn-survey.disabled{
+  background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.45);
+  cursor:not-allowed;
+}
+
+
