@@ -26,7 +26,7 @@ window.WS_CONFIG = {
     { id: "d", name: "Motivaciones y objeciones de compra." },
     { id: "e", name: "Mapas de comportamiento digital." }
   ]
-}
+},
 
 
       {
