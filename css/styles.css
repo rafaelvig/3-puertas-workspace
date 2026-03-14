@@ -318,4 +318,33 @@ body{
   color:rgba(255,255,255,0.75);
 }
 
+.drawer-survey-box{
+  margin: 16px 0 20px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+}
+
+.drawer-survey-title{
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.drawer-survey-btn{
+  display: inline-block;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #ffffff;
+  background: rgba(76, 110, 245, .85);
+  transition: .2s ease;
+}
+
+.drawer-survey-btn:hover{
+  opacity: .92;
+  transform: translateY(-1px);
+}
 
