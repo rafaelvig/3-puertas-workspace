@@ -317,10 +317,7 @@ function openDrawer(blockId) {
   $("#drawerMeta").textContent = `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
 
   const body = $("#drawerBody");
-  body.innerHTML = `
-    ${renderSurveyBox(block)}
-    ${renderAccordion(block)}
-  `;
+  body.innerHTML = renderAccordion(block);
 
   $("#drawer").classList.add("is-open");
   $("#drawer").setAttribute("aria-hidden", "false");
@@ -331,23 +328,34 @@ function openDrawer(blockId) {
   if (closeBtn) closeBtn.focus();
 }
 
-function renderSurveyBox(block) {
-  if (!block?.survey?.file) return "";
 
-  return `
-    <div class="drawer-survey-box">
-      <div class="drawer-survey-title">${block.survey.title || "Modelo de encuesta"}</div>
+function renderSurveyButton(block, subId) {
+  const file = block?.surveys?.[subId];
+
+  if (file) {
+    return `
       <a
-        class="drawer-survey-btn"
-        href="${block.survey.file}"
+        class="btn-survey active"
+        href="${file}"
         target="_blank"
         rel="noopener noreferrer"
       >
-        Ver modelo de encuesta
+        Encuesta
       </a>
-    </div>
+    `;
+  }
+
+  return `
+    <button
+      class="btn-survey disabled"
+      type="button"
+      disabled
+    >
+      Encuesta
+    </button>
   `;
 }
+
 
 function closeDrawer() {
   const drawer = $("#drawer");
@@ -410,6 +418,8 @@ function renderAccordion(block) {
             <button class="btn" type="button" data-action="upload">Subir documento</button>
             <button class="btn" type="button" data-action="link">Agregar link</button>
             <button class="btn" type="button" data-action="note-open">Agregar nota</button>
+            ${renderSurveyButton(block, sub.id)}
+
           </div>
 
           <input class="file-input" type="file" style="display:none" />
