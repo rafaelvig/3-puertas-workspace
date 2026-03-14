@@ -373,4 +373,23 @@ body{
   cursor:not-allowed;
 }
 
+.btn-survey{
+  min-width: 100px;
+}
+
+.btn-survey.active{
+  background: #4c6ef5;
+  color: #fff;
+  border-color: #4c6ef5;
+  text-decoration: none;
+}
+
+.btn-survey.disabled{
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.45);
+  border-color: rgba(255,255,255,.10);
+  cursor: not-allowed;
+}
+
+
 
