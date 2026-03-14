@@ -304,19 +304,23 @@ function render() {
 /* -----------------------
    Drawer
 ------------------------ */
+
 function openDrawer(blockId) {
   const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
   if (!block) return;
 
-  const company = window.WS_CONFIG.companies.find(c => c.id === state.companyId);
+  const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
 
   $("#drawerTitle").textContent = block.title;
   $("#drawerMeta").textContent = `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
 
   const body = $("#drawerBody");
-  body.innerHTML = renderAccordion(block);
+  body.innerHTML = `
+    ${renderSurveyBox(block)}
+    ${renderAccordion(block)}
+  `;
 
   $("#drawer").classList.add("is-open");
   $("#drawer").setAttribute("aria-hidden", "false");
@@ -327,8 +331,8 @@ function openDrawer(blockId) {
   if (closeBtn) closeBtn.focus();
 }
 
-function renderSurveyBox(block){
-  if(!block?.survey?.file) return "";
+function renderSurveyBox(block) {
+  if (!block?.survey?.file) return "";
 
   return `
     <div class="drawer-survey-box">
@@ -344,8 +348,6 @@ function renderSurveyBox(block){
     </div>
   `;
 }
-
-
 
 function closeDrawer() {
   const drawer = $("#drawer");
@@ -369,6 +371,7 @@ function initDrawer() {
     if (e.key === "Escape") closeDrawer();
   });
 }
+
 
 /* -----------------------
    Accordion render + wiring
