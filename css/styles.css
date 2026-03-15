@@ -392,4 +392,175 @@ body{
 }
 
 
+/* =========================
+   PROGRESO GENERAL
+========================= */
+.workspace-progress,
+#workspaceProgress {
+  margin: 0 0 18px;
+}
 
+.wp-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 14px 16px;
+  backdrop-filter: blur(8px);
+}
+
+.wp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.wp-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.wp-traffic {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  flex: 0 0 12px;
+}
+
+.wp-traffic.red {
+  background: #ff5d5d;
+  box-shadow: 0 0 10px rgba(255, 93, 93, 0.45);
+}
+
+.wp-traffic.yellow {
+  background: #f2b94b;
+  box-shadow: 0 0 10px rgba(242, 185, 75, 0.45);
+}
+
+.wp-traffic.green {
+  background: #3ddc84;
+  box-shadow: 0 0 10px rgba(61, 220, 132, 0.45);
+}
+
+.wp-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+  margin-bottom: 10px;
+}
+
+.wp-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4f7cff 0%, #4f9cff 50%, #67e8f9 100%);
+  transition: width 0.25s ease;
+}
+
+.wp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.88);
+  margin-bottom: 6px;
+}
+
+.wp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.68);
+}
+
+/* =========================
+   ESTADO DE MODULOS
+========================= */
+.module-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.module-status {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.module-status-empty {
+  color: #aab3c5;
+}
+
+.module-status-working {
+  color: #f2b94b;
+}
+
+.module-status-done {
+  color: #3ddc84;
+}
+
+.module-toggle-btn {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.module-toggle-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.28);
+}
+
+/* =========================
+   COLOR DEL CAJON SEGUN ESTADO
+========================= */
+.acc-item.module-empty {
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.acc-item.module-working {
+  border: 1px solid rgba(242,185,75,0.35);
+  box-shadow:
+    inset 4px 0 0 #f2b94b,
+    0 0 0 1px rgba(242,185,75,0.08);
+  background: linear-gradient(180deg, rgba(242,185,75,0.08) 0%, rgba(255,255,255,0.02) 100%);
+}
+
+.acc-item.module-done {
+  border: 1px solid rgba(61,220,132,0.35);
+  box-shadow:
+    inset 4px 0 0 #3ddc84,
+    0 0 0 1px rgba(61,220,132,0.08);
+  background: linear-gradient(180deg, rgba(61,220,132,0.10) 0%, rgba(255,255,255,0.02) 100%);
+}
+
+/* Para que el cuerpo abierto acompañe el color */
+.acc-item.module-working.is-open .acc-body {
+  background: rgba(242,185,75,0.04);
+}
+
+.acc-item.module-done.is-open .acc-body {
+  background: rgba(61,220,132,0.05);
+}
+
+/* =========================
+   CARD DE BLOQUE CON AVANCE
+========================= */
+.card-progress {
+  margin: 12px 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.88);
+}
