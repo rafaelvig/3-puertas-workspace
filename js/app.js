@@ -4,7 +4,8 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const state = {
   tab: "strategy",
   companyId: null,
-  channelId: null
+  channelId: null,
+  openBlockId: null
 };
 
 let sendingMagicLink = false;
@@ -133,8 +134,7 @@ async function saveNote(blockId, subtopic, text) {
       channel_id: state.channelId,
       block_id: blockId,
       subtopic,
-      type: "note",
-      content: cleanText
+      type: "note"
     })
     .select();
 
@@ -189,6 +189,7 @@ function countItems(node) {
 
 function getSubStatus(node) {
   const totalItems = countItems(node);
+
   if (node?.done) return "done";
   if (totalItems > 0) return "working";
   return "empty";
@@ -198,14 +199,6 @@ function getStatusLabel(status) {
   if (status === "done") return "Listo";
   if (status === "working") return "En revisión";
   return "Pendiente";
-}
-
-function markModuleAsChanged(blockId, subKey) {
-  const store = loadStore();
-  const node = ensureSubNode(store, blockId, subKey);
-  node.done = false;
-  node.reviewedAt = null;
-  saveStore(store);
 }
 
 function toggleModuleDone(blockId, subKey) {
@@ -271,15 +264,18 @@ function getBlockProgress(block) {
   subs.forEach(sub => {
     const subKey = sub.id;
     const node = ensureSubNode(store, block.id, subKey);
-    if (node.done) completed++;
+    if (node?.done) completed++;
   });
 
-  const percent = Math.round((completed / total) * 100);
-  return { total, completed, percent };
+  return {
+    total,
+    completed,
+    percent: Math.round((completed / total) * 100)
+  };
 }
 
 function renderWorkspaceProgress() {
-  const el = document.getElementById("workspaceProgress");
+  const el = $("#workspaceProgress");
   if (!el) return;
 
   const p = getWorkspaceProgress();
@@ -330,6 +326,12 @@ function renderModuleControls(blockId, subKey, node) {
       </button>
     </div>
   `;
+}
+
+function resetModuleDone(store, blockId, subKey) {
+  const node = ensureSubNode(store, blockId, subKey);
+  node.done = false;
+  node.reviewedAt = null;
 }
 
 /* -----------------------
@@ -444,9 +446,39 @@ function render() {
   });
 }
 
+function rerenderOpenDrawer() {
+  const drawer = $("#drawer");
+  if (!drawer) return;
+  if (!drawer.classList.contains("is-open")) return;
+  if (!state.openBlockId) return;
+
+  const items = window.WS_CONFIG?.planes?.[state.tab] || [];
+  const block = items.find(x => x.id === state.openBlockId);
+  if (!block) return;
+
+  const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
+  const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
+
+  const drawerTitle = $("#drawerTitle");
+  const drawerMeta = $("#drawerMeta");
+  const body = $("#drawerBody");
+
+  if (drawerTitle) drawerTitle.textContent = block.title;
+  if (drawerMeta) {
+    drawerMeta.textContent =
+      `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
+  }
+
+  if (body) {
+    body.innerHTML = renderAccordion(block);
+    wireAccordion(body);
+  }
+}
+
 function renderAll() {
   renderWorkspaceProgress();
   render();
+  rerenderOpenDrawer();
 }
 
 /* -----------------------
@@ -457,20 +489,29 @@ function openDrawer(blockId) {
   const block = items.find(x => x.id === blockId);
   if (!block) return;
 
+  state.openBlockId = blockId;
+
   const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
 
-  $("#drawerTitle").textContent = block.title;
-  $("#drawerMeta").textContent =
-    `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
-
+  const drawerTitle = $("#drawerTitle");
+  const drawerMeta = $("#drawerMeta");
   const body = $("#drawerBody");
-  body.innerHTML = renderAccordion(block);
 
-  $("#drawer").classList.add("is-open");
-  $("#drawer").setAttribute("aria-hidden", "false");
+  if (drawerTitle) drawerTitle.textContent = block.title;
+  if (drawerMeta) {
+    drawerMeta.textContent =
+      `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
+  }
+  if (body) body.innerHTML = renderAccordion(block);
 
-  wireAccordion(body);
+  const drawer = $("#drawer");
+  if (drawer) {
+    drawer.classList.add("is-open");
+    drawer.setAttribute("aria-hidden", "false");
+  }
+
+  if (body) wireAccordion(body);
 
   const closeBtn = $("#drawerClose");
   if (closeBtn) closeBtn.focus();
@@ -509,6 +550,7 @@ function closeDrawer() {
 
   drawer.classList.remove("is-open");
   drawer.setAttribute("aria-hidden", "true");
+  state.openBlockId = null;
 
   const activeTab = $(".tab.is-active");
   if (activeTab) activeTab.focus();
@@ -654,8 +696,8 @@ function wireAccordion(root) {
             ts: Date.now(),
             remoteId: saved?.id || null
           });
-          node.done = false;
-          node.reviewedAt = null;
+
+          resetModuleDone(store, realBlockId, subKey);
           saveStore(store);
 
           if (ta) ta.value = "";
@@ -716,8 +758,8 @@ function wireAccordion(root) {
       const node = ensureSubNode(store, realBlockId, subKey);
 
       if (node.notes?.[idx]) node.notes[idx].text = text;
-      node.done = false;
-      node.reviewedAt = null;
+
+      resetModuleDone(store, realBlockId, subKey);
       saveStore(store);
 
       refreshSubUI(realBlockId, subKey, item);
@@ -744,8 +786,7 @@ function wireAccordion(root) {
     if (type === "link") node.links.splice(index, 1);
     if (type === "file") node.files.splice(index, 1);
 
-    node.done = false;
-    node.reviewedAt = null;
+    resetModuleDone(store, realBlockId, subKey);
     saveStore(store);
 
     refreshSubUI(realBlockId, subKey, item);
@@ -766,8 +807,8 @@ function onAddLink(blockId, subKey, accItem) {
     title: title.trim(),
     ts: Date.now()
   });
-  node.done = false;
-  node.reviewedAt = null;
+
+  resetModuleDone(store, blockId, subKey);
   saveStore(store);
 
   refreshSubUI(blockId, subKey, accItem);
@@ -778,12 +819,22 @@ function onUpload(blockId, subKey, accItem) {
   if (!input) return;
 
   input.value = "";
+
   input.onchange = async () => {
     const f = input.files?.[0];
     if (!f) return;
 
+    console.log("Archivo seleccionado:", {
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      blockId,
+      subKey
+    });
+
     try {
       const saved = await uploadFileToStorage(f, blockId, subKey);
+      console.log("Archivo guardado en Supabase:", saved);
 
       const store = loadStore();
       const node = ensureSubNode(store, blockId, subKey);
@@ -792,18 +843,18 @@ function onUpload(blockId, subKey, accItem) {
         name: f.name,
         size: f.size,
         ts: Date.now(),
-        remoteId: saved.id,
-        url: saved.file_url,
-        path: saved.file_path
+        remoteId: saved?.id || null,
+        url: saved?.file_url || "",
+        path: saved?.file_path || ""
       });
-      node.done = false;
-      node.reviewedAt = null;
+
+      resetModuleDone(store, blockId, subKey);
       saveStore(store);
 
       refreshSubUI(blockId, subKey, accItem);
     } catch (err) {
       console.error("UPLOAD ERROR FULL:", err);
-      alert(err.message || "No se pudo subir el archivo.");
+      alert(err?.message || "No se pudo subir el archivo.");
     }
   };
 
@@ -831,7 +882,9 @@ function refreshSubUI(blockId, subKey, accItem) {
     controlsHost.insertAdjacentHTML("afterbegin", renderModuleControls(blockId, subKey, node));
   }
 
-  renderAll();
+  renderWorkspaceProgress();
+  render();
+  rerenderOpenDrawer();
 }
 
 function renderMiniList(node) {
