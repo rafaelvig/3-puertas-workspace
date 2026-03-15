@@ -502,7 +502,7 @@ function renderAccordion(block) {
     const subKey = sub.id;
     const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
     const node = ensureSubNode(store, block.id, subKey);
-    const cnt = countItems(node
+    const cnt = countItems(node);
     const status = getSubStatus(node);
 
     return `
