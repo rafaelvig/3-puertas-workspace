@@ -72,9 +72,7 @@ async function uploadFileToStorage(file, blockId, subKey) {
   const { error: uploadError } = await sb
     .storage
     .from("workspace-files")
-    .upload(path, file, {
-      upsert: false
-    });
+    .upload(path, file, { upsert: false });
 
   if (uploadError) throw uploadError;
 
@@ -166,9 +164,10 @@ function loadStore() {
 function saveStore(obj) {
   localStorage.setItem(storageKey(), JSON.stringify(obj));
 }
-function ensureSubNode(store, blockId, subName){
+
+function ensureSubNode(store, blockId, subKey) {
   store[blockId] = store[blockId] || {};
-  store[blockId][subName] = store[blockId][subName] || {
+  store[blockId][subKey] = store[blockId][subKey] || {
     notes: [],
     links: [],
     files: [],
@@ -176,53 +175,63 @@ function ensureSubNode(store, blockId, subName){
     done: false,
     reviewedAt: null
   };
-  return store[blockId][subName];
+  return store[blockId][subKey];
 }
 
-
-function getSubStatus(node){
-  const totalItems =
+function countItems(node) {
+  return (
     (node?.notes?.length || 0) +
     (node?.links?.length || 0) +
     (node?.files?.length || 0) +
-    (node?.surveys?.length || 0);
+    (node?.surveys?.length || 0)
+  );
+}
 
+function getSubStatus(node) {
+  const totalItems = countItems(node);
   if (node?.done) return "done";
   if (totalItems > 0) return "working";
   return "empty";
 }
 
-function getStatusLabel(status){
-  if(status === "done") return "Listo";
-  if(status === "working") return "En revisión";
+function getStatusLabel(status) {
+  if (status === "done") return "Listo";
+  if (status === "working") return "En revisión";
   return "Pendiente";
 }
 
-function toggleModuleDone(blockId, subName){
+function markModuleAsChanged(blockId, subKey) {
   const store = loadStore();
-  const node = ensureSubNode(store, blockId, subName);
+  const node = ensureSubNode(store, blockId, subKey);
+  node.done = false;
+  node.reviewedAt = null;
+  saveStore(store);
+}
+
+function toggleModuleDone(blockId, subKey) {
+  const store = loadStore();
+  const node = ensureSubNode(store, blockId, subKey);
 
   node.done = !node.done;
   node.reviewedAt = node.done ? new Date().toISOString() : null;
 
   saveStore(store);
-
   renderAll();
 }
 
-function getAllModules(){
+function getAllModules() {
   const modules = [];
   const store = loadStore();
-
-  // Asume que WS_CONFIG.planes[state.tab] es el origen de bloques/subs
   const blocks = window.WS_CONFIG?.planes?.[state.tab] || [];
 
   blocks.forEach(block => {
     (block.subs || []).forEach(sub => {
-      const node = ensureSubNode(store, block.id, sub.name);
+      const subKey = sub.id;
+      const node = ensureSubNode(store, block.id, subKey);
+
       modules.push({
         blockId: block.id,
-        subName: sub.name,
+        subKey,
         node
       });
     });
@@ -231,7 +240,7 @@ function getAllModules(){
   return modules;
 }
 
-function getWorkspaceProgress(){
+function getWorkspaceProgress() {
   const modules = getAllModules();
   const total = modules.length;
 
@@ -242,16 +251,36 @@ function getWorkspaceProgress(){
   const percent = total ? Math.round((done / total) * 100) : 0;
 
   let traffic = "red";
-  if(percent >= 80) traffic = "green";
-  else if(percent >= 35) traffic = "yellow";
+  if (percent >= 80) traffic = "green";
+  else if (percent >= 35) traffic = "yellow";
 
   return { total, done, working, empty, percent, traffic };
 }
 
+function getBlockProgress(block) {
+  const store = loadStore();
+  const subs = block?.subs || [];
+  const total = subs.length;
 
-function renderWorkspaceProgress(){
+  if (!total) {
+    return { total: 0, completed: 0, percent: 0 };
+  }
+
+  let completed = 0;
+
+  subs.forEach(sub => {
+    const subKey = sub.id;
+    const node = ensureSubNode(store, block.id, subKey);
+    if (node.done) completed++;
+  });
+
+  const percent = Math.round((completed / total) * 100);
+  return { total, completed, percent };
+}
+
+function renderWorkspaceProgress() {
   const el = document.getElementById("workspaceProgress");
-  if(!el) return;
+  if (!el) return;
 
   const p = getWorkspaceProgress();
 
@@ -280,31 +309,11 @@ function renderWorkspaceProgress(){
   `;
 }
 
-
-function getBlockProgress(block){
-  const store = loadStore();
-  const subs = block?.subs || [];
-  const total = subs.length;
-
-  if (!total) {
-    return { total: 0, completed: 0, percent: 0 };
-  }
-
-  let completed = 0;
-
-  subs.forEach(sub => {
-    const subKey = sub.id;
-    const node = ensureSubNode(store, block.id, subKey);
-    if (node.done) completed++;
-  });
-
-  const percent = Math.round((completed / total) * 100);
-
-  return { total, completed, percent };
-}
-function renderModuleControls(blockId, subName, node){
+function renderModuleControls(blockId, subKey, node) {
   const status = getSubStatus(node);
   const statusLabel = getStatusLabel(status);
+  const safeBlockId = String(blockId).replace(/'/g, "\\'");
+  const safeSubKey = String(subKey).replace(/'/g, "\\'");
 
   return `
     <div class="module-controls">
@@ -312,13 +321,16 @@ function renderModuleControls(blockId, subName, node){
         Estado: ${statusLabel}
       </div>
 
-      <button class="module-toggle-btn" onclick="toggleModuleDone('${blockId}', '${subName.replace(/'/g, "\\'")}')">
+      <button
+        class="module-toggle-btn"
+        type="button"
+        onclick="toggleModuleDone('${safeBlockId}', '${safeSubKey}')"
+      >
         ${node.done ? "Reabrir módulo" : "Marcar módulo listo"}
       </button>
     </div>
   `;
 }
-
 
 /* -----------------------
    Init: selectors + tabs
@@ -328,13 +340,16 @@ function initSelectors() {
   const selCompany = $("#selCompany");
   if (!selCompany) return;
 
-  selCompany.innerHTML = companies.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  selCompany.innerHTML = companies
+    .map(c => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`)
+    .join("");
+
   state.companyId = companies[0]?.id || null;
 
   selCompany.addEventListener("change", () => {
     state.companyId = selCompany.value;
     syncChannels();
-    render();
+    renderAll();
     closeDrawer();
   });
 
@@ -345,15 +360,18 @@ function syncChannels() {
   const selChannel = $("#selChannel");
   if (!selChannel) return;
 
-  const company = window.WS_CONFIG.companies.find(c => c.id === state.companyId);
+  const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
   const channels = company?.channels || [];
 
-  selChannel.innerHTML = channels.map(ch => `<option value="${ch.id}">${ch.name}</option>`).join("");
+  selChannel.innerHTML = channels
+    .map(ch => `<option value="${escapeAttr(ch.id)}">${escapeHtml(ch.name)}</option>`)
+    .join("");
+
   state.channelId = channels[0]?.id || null;
 
   selChannel.onchange = () => {
     state.channelId = selChannel.value;
-    render();
+    renderAll();
     closeDrawer();
   };
 }
@@ -386,7 +404,7 @@ function initTabs() {
       btn.setAttribute("aria-selected", "true");
       state.tab = targetTab;
 
-      render();
+      renderAll();
       closeDrawer();
     });
   });
@@ -405,16 +423,16 @@ function render() {
     const progress = getBlockProgress(item);
 
     return `
-      <article class="card" data-id="${item.id}">
-        <div class="card-title">${item.title}</div>
-        <div class="card-desc">${item.desc}</div>
+      <article class="card" data-id="${escapeAttr(item.id)}">
+        <div class="card-title">${escapeHtml(item.title)}</div>
+        <div class="card-desc">${escapeHtml(item.desc || "")}</div>
 
         <div class="card-progress">
           ${progress.completed} / ${progress.total}
         </div>
 
         <div class="card-meta">
-          <span class="tag">${item.id}</span>
+          <span class="tag">${escapeHtml(item.id)}</span>
           <span class="tag">${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}</span>
         </div>
       </article>
@@ -424,6 +442,11 @@ function render() {
   $$(".card", grid).forEach(card => {
     card.addEventListener("click", () => openDrawer(card.dataset.id));
   });
+}
+
+function renderAll() {
+  renderWorkspaceProgress();
+  render();
 }
 
 /* -----------------------
@@ -438,7 +461,8 @@ function openDrawer(blockId) {
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
 
   $("#drawerTitle").textContent = block.title;
-  $("#drawerMeta").textContent = `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
+  $("#drawerMeta").textContent =
+    `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
 
   const body = $("#drawerBody");
   body.innerHTML = renderAccordion(block);
@@ -446,7 +470,7 @@ function openDrawer(blockId) {
   $("#drawer").classList.add("is-open");
   $("#drawer").setAttribute("aria-hidden", "false");
 
-  wireAccordion(body, block.id);
+  wireAccordion(body);
 
   const closeBtn = $("#drawerClose");
   if (closeBtn) closeBtn.focus();
@@ -459,7 +483,7 @@ function renderSurveyButton(block, subId) {
     return `
       <a
         class="btn btn-survey active"
-        href="${file}"
+        href="${escapeAttr(file)}"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -537,20 +561,22 @@ function renderAccordion(block) {
 
         <div class="acc-body">
           <div class="row-actions">
-          ${renderModuleControls(block.id, subKey, node)}
+            ${renderModuleControls(block.id, subKey, node)}
             <button class="btn" type="button" data-action="upload">Subir documento</button>
             <button class="btn" type="button" data-action="link">Agregar link</button>
             <button class="btn" type="button" data-action="note-open">Agregar nota</button>
             ${renderSurveyButton(block, sub.id)}
-            
           </div>
 
           <input class="file-input" type="file" style="display:none" />
 
           <div class="note-compose" style="display:none; margin-top:10px;">
-            <textarea class="note-new-text" rows="4"
+            <textarea
+              class="note-new-text"
+              rows="4"
               style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;"
-              placeholder="Escribí una nota..."></textarea>
+              placeholder="Escribí una nota..."
+            ></textarea>
             <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
               <button class="btn" type="button" data-action="note-save-new">Guardar</button>
               <button class="btn" type="button" data-action="note-cancel-new">Cancelar</button>
@@ -622,7 +648,14 @@ function wireAccordion(root) {
         .then((saved) => {
           const store = loadStore();
           const node = ensureSubNode(store, realBlockId, subKey);
-          node.notes.unshift({ text, ts: Date.now(), remoteId: saved?.id || null });
+
+          node.notes.unshift({
+            text,
+            ts: Date.now(),
+            remoteId: saved?.id || null
+          });
+          node.done = false;
+          node.reviewedAt = null;
           saveStore(store);
 
           if (ta) ta.value = "";
@@ -681,7 +714,10 @@ function wireAccordion(root) {
 
       const store = loadStore();
       const node = ensureSubNode(store, realBlockId, subKey);
+
       if (node.notes?.[idx]) node.notes[idx].text = text;
+      node.done = false;
+      node.reviewedAt = null;
       saveStore(store);
 
       refreshSubUI(realBlockId, subKey, item);
@@ -708,7 +744,10 @@ function wireAccordion(root) {
     if (type === "link") node.links.splice(index, 1);
     if (type === "file") node.files.splice(index, 1);
 
+    node.done = false;
+    node.reviewedAt = null;
     saveStore(store);
+
     refreshSubUI(realBlockId, subKey, item);
   });
 }
@@ -718,9 +757,17 @@ function onAddLink(blockId, subKey, accItem) {
   if (!url || !url.trim()) return;
 
   const title = prompt("Título del link (opcional):") || "";
+
   const store = loadStore();
   const node = ensureSubNode(store, blockId, subKey);
-  node.links.unshift({ url: url.trim(), title: title.trim(), ts: Date.now() });
+
+  node.links.unshift({
+    url: url.trim(),
+    title: title.trim(),
+    ts: Date.now()
+  });
+  node.done = false;
+  node.reviewedAt = null;
   saveStore(store);
 
   refreshSubUI(blockId, subKey, accItem);
@@ -740,6 +787,7 @@ function onUpload(blockId, subKey, accItem) {
 
       const store = loadStore();
       const node = ensureSubNode(store, blockId, subKey);
+
       node.files.unshift({
         name: f.name,
         size: f.size,
@@ -748,6 +796,8 @@ function onUpload(blockId, subKey, accItem) {
         url: saved.file_url,
         path: saved.file_path
       });
+      node.done = false;
+      node.reviewedAt = null;
       saveStore(store);
 
       refreshSubUI(blockId, subKey, accItem);
@@ -763,12 +813,25 @@ function onUpload(blockId, subKey, accItem) {
 function refreshSubUI(blockId, subKey, accItem) {
   const store = loadStore();
   const node = ensureSubNode(store, blockId, subKey);
+  const status = getSubStatus(node);
 
   const cntEl = $(".acc-count", accItem);
   if (cntEl) cntEl.textContent = String(countItems(node));
 
   const miniEl = $(".mini", accItem);
   if (miniEl) miniEl.innerHTML = renderMiniList(node);
+
+  accItem.classList.remove("module-empty", "module-working", "module-done");
+  accItem.classList.add(`module-${status}`);
+
+  const controlsHost = $(".row-actions", accItem);
+  if (controlsHost) {
+    const oldControls = $(".module-controls", controlsHost);
+    if (oldControls) oldControls.remove();
+    controlsHost.insertAdjacentHTML("afterbegin", renderModuleControls(blockId, subKey, node));
+  }
+
+  renderAll();
 }
 
 function renderMiniList(node) {
@@ -792,6 +855,7 @@ function renderMiniList(node) {
 
   if (notes.length) {
     parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Notas</span></div>`);
+
     const li = notes.map((n, i) => {
       const textView = escapeHtml(trunc(n.text, 300));
       const textEdit = escapeHtml(n.text);
@@ -822,6 +886,7 @@ function renderMiniList(node) {
 
   if (links.length) {
     parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Links</span></div>`);
+
     const li = links.map((l, i) => {
       const label = l.title ? escapeHtml(trunc(l.title, 60)) : escapeHtml(trunc(l.url, 60));
       const href = escapeAttr(l.url);
@@ -841,6 +906,7 @@ function renderMiniList(node) {
 
   if (files.length) {
     parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Archivos</span></div>`);
+
     const li = files.map((f, i) => {
       const label = escapeHtml(trunc(f.name, 60));
       const href = f.url ? escapeAttr(f.url) : null;
@@ -1022,7 +1088,7 @@ async function boot() {
   if (!ok) return;
 
   initApp();
-  render();
+  renderAll();
 }
 
 boot();
@@ -1037,6 +1103,6 @@ sb.auth.onAuthStateChange(async (event) => {
   const ok = await applyAuthGate();
   if (ok) {
     initApp();
-    render();
+    renderAll();
   }
 });
