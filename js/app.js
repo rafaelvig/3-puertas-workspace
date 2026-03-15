@@ -166,34 +166,136 @@ function loadStore() {
 function saveStore(obj) {
   localStorage.setItem(storageKey(), JSON.stringify(obj));
 }
-
-function ensureSubNode(store, blockId, subKey) {
+function ensureSubNode(store, blockId, subName){
   store[blockId] = store[blockId] || {};
-  store[blockId][subKey] = store[blockId][subKey] || { notes: [], links: [], files: [] };
-  return store[blockId][subKey];
+  store[blockId][subName] = store[blockId][subName] || {
+    notes: [],
+    links: [],
+    files: [],
+    surveys: [],
+    done: false,
+    reviewedAt: null
+  };
+  return store[blockId][subName];
 }
 
-function countItems(node) {
-  return (node?.notes?.length || 0) + (node?.links?.length || 0) + (node?.files?.length || 0);
+
+function getSubStatus(node){
+  const totalItems =
+    (node?.notes?.length || 0) +
+    (node?.links?.length || 0) +
+    (node?.files?.length || 0) +
+    (node?.surveys?.length || 0);
+
+  if (node?.done) return "done";
+  if (totalItems > 0) return "working";
+  return "empty";
 }
 
-function getBlockProgress(block) {
+function getStatusLabel(status){
+  if(status === "done") return "Listo";
+  if(status === "working") return "En revisión";
+  return "Pendiente";
+}
+
+function toggleModuleDone(blockId, subName){
   const store = loadStore();
-  const subs = block.subs || [];
+  const node = ensureSubNode(store, blockId, subName);
 
-  let completed = 0;
+  node.done = !node.done;
+  node.reviewedAt = node.done ? new Date().toISOString() : null;
 
-  subs.forEach(sub => {
-    const node = ensureSubNode(store, block.id, sub.id);
-    const total = countItems(node);
-    if (total > 0) completed++;
+  saveStore(store);
+
+  renderAll();
+}
+
+function getAllModules(){
+  const modules = [];
+  const store = loadStore();
+
+  // Asume que WS_CONFIG.planes[state.tab] es el origen de bloques/subs
+  const blocks = window.WS_CONFIG?.planes?.[state.tab] || [];
+
+  blocks.forEach(block => {
+    (block.subs || []).forEach(sub => {
+      const node = ensureSubNode(store, block.id, sub.name);
+      modules.push({
+        blockId: block.id,
+        subName: sub.name,
+        node
+      });
+    });
   });
 
-  return {
-    completed,
-    total: subs.length
-  };
+  return modules;
 }
+
+function getWorkspaceProgress(){
+  const modules = getAllModules();
+  const total = modules.length;
+
+  const done = modules.filter(m => m.node.done).length;
+  const working = modules.filter(m => getSubStatus(m.node) === "working").length;
+  const empty = total - done - working;
+
+  const percent = total ? Math.round((done / total) * 100) : 0;
+
+  let traffic = "red";
+  if(percent >= 80) traffic = "green";
+  else if(percent >= 35) traffic = "yellow";
+
+  return { total, done, working, empty, percent, traffic };
+}
+
+function renderWorkspaceProgress(){
+  const el = document.getElementById("workspaceProgress");
+  if(!el) return;
+
+  const p = getWorkspaceProgress();
+
+  el.innerHTML = `
+    <div class="wp-card">
+      <div class="wp-top">
+        <div class="wp-title">Avance general</div>
+        <div class="wp-traffic ${p.traffic}"></div>
+      </div>
+
+      <div class="wp-bar">
+        <div class="wp-bar-fill" style="width:${p.percent}%"></div>
+      </div>
+
+      <div class="wp-meta">
+        <span>${p.percent}% completado</span>
+        <span>${p.done}/${p.total} módulos listos</span>
+      </div>
+
+      <div class="wp-legend">
+        <span>Listos: ${p.done}</span>
+        <span>En revisión: ${p.working}</span>
+        <span>Pendientes: ${p.empty}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderModuleControls(blockId, subName, node){
+  const status = getSubStatus(node);
+  const statusLabel = getStatusLabel(status);
+
+  return `
+    <div class="module-controls">
+      <div class="module-status module-status-${status}">
+        Estado: ${statusLabel}
+      </div>
+
+      <button class="module-toggle-btn" onclick="toggleModuleDone('${blockId}', '${subName.replace(/'/g, "\\'")}')">
+        ${node.done ? "Reabrir módulo" : "Marcar módulo listo"}
+      </button>
+    </div>
+  `;
+}
+
 
 /* -----------------------
    Init: selectors + tabs
@@ -400,10 +502,11 @@ function renderAccordion(block) {
     const subKey = sub.id;
     const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
     const node = ensureSubNode(store, block.id, subKey);
-    const cnt = countItems(node);
+    const cnt = countItems(node
+    const status = getSubStatus(node);
 
     return `
-      <div class="acc-item" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
+      <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
         <button class="acc-header" type="button">
           <span class="acc-title">${escapeHtml(subLabel)}</span>
           <span class="acc-count">${cnt}</span>
@@ -411,10 +514,12 @@ function renderAccordion(block) {
 
         <div class="acc-body">
           <div class="row-actions">
+          ${renderModuleControls(block.id, subKey, node)}
             <button class="btn" type="button" data-action="upload">Subir documento</button>
             <button class="btn" type="button" data-action="link">Agregar link</button>
             <button class="btn" type="button" data-action="note-open">Agregar nota</button>
             ${renderSurveyButton(block, sub.id)}
+            
           </div>
 
           <input class="file-input" type="file" style="display:none" />
