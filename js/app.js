@@ -248,6 +248,7 @@ function getWorkspaceProgress(){
   return { total, done, working, empty, percent, traffic };
 }
 
+
 function renderWorkspaceProgress(){
   const el = document.getElementById("workspaceProgress");
   if(!el) return;
@@ -279,6 +280,28 @@ function renderWorkspaceProgress(){
   `;
 }
 
+
+function getBlockProgress(block){
+  const store = loadStore();
+  const subs = block?.subs || [];
+  const total = subs.length;
+
+  if (!total) {
+    return { total: 0, completed: 0, percent: 0 };
+  }
+
+  let completed = 0;
+
+  subs.forEach(sub => {
+    const subKey = sub.id;
+    const node = ensureSubNode(store, block.id, subKey);
+    if (node.done) completed++;
+  });
+
+  const percent = Math.round((completed / total) * 100);
+
+  return { total, completed, percent };
+}
 function renderModuleControls(blockId, subName, node){
   const status = getSubStatus(node);
   const statusLabel = getStatusLabel(status);
