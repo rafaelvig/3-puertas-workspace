@@ -153,6 +153,7 @@ async function saveNote(blockId, subtopic, text) {
       block_id: blockId,
       subtopic,
       type: "note"
+      content: cleanText
     })
     .select();
 
