@@ -70,10 +70,21 @@ async function uploadFileToStorage(file, blockId, subKey) {
   const safeName = file.name.replace(/[^\w.\-]+/g, "_");
   const path = `${state.companyId}/${state.channelId}/${blockId}/${subKey}/${Date.now()}_${safeName}`;
 
-  const { error: uploadError } = await sb
+  console.log("STEP 1 - preparando upload", {
+    userId: user.id,
+    bucket: "workspace-files",
+    path,
+    fileName: file.name,
+    size: file.size,
+    type: file.type
+  });
+
+  const { data: uploadData, error: uploadError } = await sb
     .storage
     .from("workspace-files")
     .upload(path, file, { upsert: false });
+
+  console.log("STEP 2 - resultado upload", { uploadData, uploadError });
 
   if (uploadError) throw uploadError;
 
@@ -82,29 +93,36 @@ async function uploadFileToStorage(file, blockId, subKey) {
     .from("workspace-files")
     .createSignedUrl(path, 60 * 60 * 24 * 7);
 
+  console.log("STEP 3 - resultado signed url", { signedData, signedError });
+
   if (signedError) throw signedError;
+
+  const payload = {
+    company_id: state.companyId,
+    channel_id: state.channelId,
+    block_id: blockId,
+    subtopic: subKey,
+    type: "file",
+    content: file.name,
+    file_path: path,
+    file_url: signedData?.signedUrl || null,
+    created_by: user.id
+  };
+
+  console.log("STEP 4 - insert workspace_items", payload);
 
   const { data, error: insertError } = await sb
     .from("workspace_items")
-    .insert({
-      company_id: state.companyId,
-      channel_id: state.channelId,
-      block_id: blockId,
-      subtopic: subKey,
-      type: "file",
-      content: file.name,
-      file_path: path,
-      file_url: signedData.signedUrl,
-      created_by: user.id
-    })
+    .insert(payload)
     .select()
     .single();
+
+  console.log("STEP 5 - resultado insert", { data, insertError });
 
   if (insertError) throw insertError;
 
   return data;
 }
-
 async function loadWorkspace(blockId, subtopic) {
   const { data, error } = await sb
     .from("workspace_items")
@@ -878,10 +896,12 @@ function onUpload(blockId, subKey, accItem) {
       resetModuleDone(store, blockId, subKey);
       saveStore(store);
 
+      console.log("STEP 6 - archivo agregado al store local", node.files[0]);
+
       refreshSubUI(blockId, subKey, accItem);
     } catch (err) {
       console.error("UPLOAD ERROR FULL:", err);
-      alert(err?.message || "No se pudo subir el archivo.");
+      alert(err?.message || JSON.stringify(err) || "No se pudo subir el archivo.");
     }
   };
 
