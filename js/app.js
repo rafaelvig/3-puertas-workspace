@@ -1093,7 +1093,8 @@ if (theory.length) {
     const href = f.url ? escapeAttr(f.url) : null;
 
     return [
-      `<li>`,
+      `<li class="mini-theory-item">`,
+      `<span class="mini-badge mini-badge-theory">Clase</span>`,
       href
         ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline; opacity:.95;">${label}</a>`
         : label,
