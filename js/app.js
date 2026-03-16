@@ -689,12 +689,22 @@ function renderAccordion(block) {
 }
 
 function wireAccordion(root) {
+  if (!root) return;
+
+  // Headers: estos sí hay que volver a enlazarlos porque se recrean con innerHTML
   $$(".acc-header", root).forEach(btn => {
+    if (btn.dataset.wiredHeader === "1") return;
+
     btn.addEventListener("click", () => {
       const item = btn.closest(".acc-item");
       item?.classList.toggle("is-open");
     });
+
+    btn.dataset.wiredHeader = "1";
   });
+
+  // Delegados: estos deben registrarse una sola vez sobre drawerBody
+  if (root.dataset.wiredDelegates === "1") return;
 
   root.addEventListener("click", (e) => {
     const actionBtn = e.target.closest("button[data-action]");
@@ -713,9 +723,9 @@ function wireAccordion(root) {
     }
 
     if (action === "upload-theory") {
-  onUploadTheory(realBlockId, subKey, item);
-  return;
-}
+      onUploadTheory(realBlockId, subKey, item);
+      return;
+    }
 
     if (action === "link") {
       onAddLink(realBlockId, subKey, item);
@@ -849,8 +859,9 @@ function wireAccordion(root) {
 
     refreshSubUI(realBlockId, subKey, item);
   });
-}
 
+  root.dataset.wiredDelegates = "1";
+}
 function onUploadTheory(blockId, subKey, accItem) {
   const input = $(".file-input", accItem);
   if (!input) return;
