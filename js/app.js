@@ -580,7 +580,7 @@ if (body) {
   body.innerHTML = await renderAccordion(block);
   wireAccordion(body);
 }
-}
+
 
 async function renderAll() {
   renderWorkspaceProgress();
