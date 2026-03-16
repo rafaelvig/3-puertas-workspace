@@ -552,7 +552,7 @@ function render() {
   });
 }
 
-function rerenderOpenDrawer() {
+async function rerenderOpenDrawer() {
   const drawer = $("#drawer");
   if (!drawer) return;
   if (!drawer.classList.contains("is-open")) return;
@@ -575,12 +575,12 @@ function rerenderOpenDrawer() {
       `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
   }
 
-if (body) {
-  body.innerHTML = `<div class="mini">Actualizando...</div>`;
-  body.innerHTML = await renderAccordion(block);
-  wireAccordion(body);
+  if (body) {
+    body.innerHTML = `<div class="mini">Actualizando...</div>`;
+    body.innerHTML = await renderAccordion(block);
+    wireAccordion(body);
+  }
 }
-
 
 async function renderAll() {
   renderWorkspaceProgress();
@@ -592,7 +592,7 @@ async function renderAll() {
    Drawer
 ------------------------ */
 async function openDrawer(blockId) {
-const items = window.WS_CONFIG?.planes?.[state.tab] || [];
+  const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
   if (!block) return;
 
@@ -610,9 +610,10 @@ const items = window.WS_CONFIG?.planes?.[state.tab] || [];
     drawerMeta.textContent =
       `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
   }
-if (body) body.innerHTML = `<div class="mini">Cargando...</div>`;
-if (body) body.innerHTML = await renderAccordion(block);
-  
+
+  if (body) body.innerHTML = `<div class="mini">Cargando...</div>`;
+  if (body) body.innerHTML = await renderAccordion(block);
+
   const drawer = $("#drawer");
   if (drawer) {
     drawer.classList.add("is-open");
