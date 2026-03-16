@@ -186,16 +186,19 @@ function saveStore(obj) {
 
 function ensureSubNode(store, blockId, subKey) {
   store[blockId] = store[blockId] || {};
-  store[blockId][subKey] = store[blockId][subKey] || {
-    notes: [],
-    links: [],
-    files: [],
-    theory: [],
-    surveys: [],
-    done: false,
-    reviewedAt: null
-  };
-  return store[blockId][subKey];
+  store[blockId][subKey] = store[blockId][subKey] || {};
+
+  const node = store[blockId][subKey];
+
+  node.notes = Array.isArray(node.notes) ? node.notes : [];
+  node.links = Array.isArray(node.links) ? node.links : [];
+  node.files = Array.isArray(node.files) ? node.files : [];
+  node.theory = Array.isArray(node.theory) ? node.theory : [];
+  node.surveys = Array.isArray(node.surveys) ? node.surveys : [];
+  node.done = typeof node.done === "boolean" ? node.done : false;
+  node.reviewedAt = node.reviewedAt || null;
+
+  return node;
 }
 
 function countItems(node) {
