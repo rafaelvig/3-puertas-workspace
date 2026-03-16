@@ -8,41 +8,57 @@
 </head>
 <body>
 
- <header class="topbar">
- <div class="topbar-left">
-  <img 
-    src="img/logo-3puertas.svg" 
-    class="logo-main"
-    alt="3 Puertas"
-  />
+<header class="topbar">
 
-  <div class="brand">
-    <div class="brand-title">3 Puertas Workspace</div>
-    <div class="brand-subtitle">Estrategia + Sistema Comercial</div>
+  <!-- Marca del sistema -->
+  <div class="topbar-left">
+
+    <img 
+      src="img/logo-3puertas.svg" 
+      class="logo-main"
+      alt="3 Puertas"
+    />
+
+    <div class="brand">
+      <div class="brand-title">3 Puertas</div>
+      <div class="brand-subtitle">Estrategia + Sistema Comercial</div>
+    </div>
+
   </div>
 
-  <img
-    id="clientLogo"
-    src="img/logo-monumento.svg"
-    class="logo-client"
-    alt="Cliente"
-  />
-</div>
+
+  <!-- Empresa + selectores -->
   <div class="topbar-center">
-    <div class="select-wrap">
-      <label class="sr-only" for="selCompany">Empresa</label>
-      <select id="selCompany"></select>
+
+    <div class="company-context">
+
+      <img
+        id="clientLogo"
+        src="img/logo-monumento.svg"
+        class="logo-client"
+        alt="Cliente"
+      />
+
+      <div class="select-wrap">
+        <label class="sr-only" for="selCompany">Empresa</label>
+        <select id="selCompany"></select>
+      </div>
+
+      <div class="select-wrap">
+        <label class="sr-only" for="selChannel">Canal</label>
+        <select id="selChannel"></select>
+      </div>
+
     </div>
 
-    <div class="select-wrap">
-      <label class="sr-only" for="selChannel">Canal</label>
-      <select id="selChannel"></select>
-    </div>
   </div>
 
+
+  <!-- Estado sesión -->
   <div class="topbar-right">
     <div class="pill" id="sessionPill">Sesión: Local</div>
   </div>
+
 </header>
 
 <div id="workspaceProgress" class="workspace-progress"></div>
