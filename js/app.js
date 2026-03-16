@@ -1065,47 +1065,44 @@ function renderMiniList(node) {
     parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
   }
 
-  if (files.length) {
-    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Archivos</span></div>`);
+if (files.length) {
+  parts.push(`<div class="mini-section-title"><span>Archivos</span></div>`);
 
-    const li = files.map((f, i) => {
-      const label = escapeHtml(trunc(f.name, 60));
-      const href = f.url ? escapeAttr(f.url) : null;
+  const li = files.map((f, i) => {
+    const label = escapeHtml(trunc(f.name, 60));
+    const href = f.url ? escapeAttr(f.url) : null;
 
-      return [
-        `<li>`,
-        href
-          ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
-          : label,
-        delBtn("file", i),
-        `</li>`
-      ].join("");
-    }).join("");
+    return [
+      `<li>`,
+      href
+        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline; opacity:.9;">${label}</a>`
+        : label,
+      delBtn("file", i),
+      `</li>`
+    ].join("");
+  }).join("");
 
-    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
-  }
+  parts.push(`<ul class="mini-list files">${li}</ul>`);
+}
 
-  if (theory.length) {
-    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Material teórico</span></div>`);
+if (theory.length) {
+  parts.push(`<div class="mini-section-title"><span>Material teórico</span></div>`);
 
-    const li = theory.map((f, i) => {
-      const label = escapeHtml(trunc(f.name, 60));
-      const href = f.url ? escapeAttr(f.url) : null;
+  const li = theory.map((f, i) => {
+    const label = escapeHtml(trunc(f.name, 60));
+    const href = f.url ? escapeAttr(f.url) : null;
 
-      return [
-        `<li>`,
-        href
-          ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
-          : label,
-        delBtn("theory", i),
-        `</li>`
-      ].join("");
-    }).join("");
+    return [
+      `<li>`,
+      href
+        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline; opacity:.95;">${label}</a>`
+        : label,
+      delBtn("theory", i),
+      `</li>`
+    ].join("");
+  }).join("");
 
-    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
-  }
-
-  return parts.join("");
+  parts.push(`<ul class="mini-list theory">${li}</ul>`);
 }
 
 
