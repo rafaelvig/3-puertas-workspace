@@ -152,7 +152,7 @@ async function saveNote(blockId, subtopic, text) {
       channel_id: state.channelId,
       block_id: blockId,
       subtopic,
-      type: "note"
+      type: "note",
       content: cleanText
     })
     .select();
