@@ -990,14 +990,17 @@ function refreshSubUI(blockId, subKey, accItem) {
   render();
   rerenderOpenDrawer();
 }
-const notes = node?.notes || [];
-const links = node?.links || [];
-const files = node?.files || [];
-const theory = node?.theory || [];
 
-if (notes.length + links.length + files.length + theory.length === 0) {
-  return "Sin contenido cargado";
-}
+function renderMiniList(node) {
+  const notes = node?.notes || [];
+  const links = node?.links || [];
+  const files = node?.files || [];
+  const theory = node?.theory || [];
+
+  if (notes.length + links.length + files.length + theory.length === 0) {
+    return "Sin contenido cargado";
+  }
+
   const parts = [];
 
   const delBtn = (type, index) =>
@@ -1076,29 +1079,30 @@ if (notes.length + links.length + files.length + theory.length === 0) {
       ].join("");
     }).join("");
 
-    parts.push(`<ul style="margin:0 0 0 16px; padding:0;">${li}</ul>`);
+    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
+  }
+
+  if (theory.length) {
+    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Material teórico</span></div>`);
+
+    const li = theory.map((f, i) => {
+      const label = escapeHtml(trunc(f.name, 60));
+      const href = f.url ? escapeAttr(f.url) : null;
+
+      return [
+        `<li>`,
+        href
+          ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
+          : label,
+        delBtn("theory", i),
+        `</li>`
+      ].join("");
+    }).join("");
+
+    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
   }
 
   return parts.join("");
-}
-if (theory.length) {
-  parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Material teórico</span></div>`);
-
-  const li = theory.map((f, i) => {
-    const label = escapeHtml(trunc(f.name, 60));
-    const href = f.url ? escapeAttr(f.url) : null;
-
-    return [
-      `<li>`,
-      href
-        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
-        : label,
-      delBtn("theory", i),
-      `</li>`
-    ].join("");
-  }).join("");
-
-  parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
 }
 
 
