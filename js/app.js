@@ -356,6 +356,7 @@ function initSelectors() {
   });
 
   syncChannels();
+  updateClientLogo();
 }
 
 function syncChannels() {
@@ -375,7 +376,29 @@ function syncChannels() {
     state.channelId = selChannel.value;
     renderAll();
     closeDrawer();
+    updateClientLogo();
   };
+}
+
+
+function updateClientLogo(){
+
+  const logos = {
+    monumento: "img/logo-monumento.svg"
+  };
+
+  const el = document.getElementById("clientLogo");
+  if(!el) return;
+
+  const src = logos[state.companyId];
+
+  if(src){
+    el.src = src;
+    el.style.display = "block";
+  }else{
+    el.style.display = "none";
+  }
+
 }
 
 function initTabs() {
