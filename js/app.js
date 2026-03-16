@@ -351,6 +351,7 @@ function initSelectors() {
   selCompany.addEventListener("change", () => {
     state.companyId = selCompany.value;
     syncChannels();
+    updateClientLogo();
     renderAll();
     closeDrawer();
   });
@@ -358,7 +359,6 @@ function initSelectors() {
   syncChannels();
   updateClientLogo();
 }
-
 function syncChannels() {
   const selChannel = $("#selChannel");
   if (!selChannel) return;
@@ -376,31 +376,27 @@ function syncChannels() {
     state.channelId = selChannel.value;
     renderAll();
     closeDrawer();
-    updateClientLogo();
   };
 }
 
 
-function updateClientLogo(){
-
+function updateClientLogo() {
   const logos = {
     monumento: "img/logo-monumento.svg"
   };
 
   const el = document.getElementById("clientLogo");
-  if(!el) return;
+  if (!el) return;
 
   const src = logos[state.companyId];
 
-  if(src){
+  if (src) {
     el.src = src;
     el.style.display = "block";
-  }else{
+  } else {
     el.style.display = "none";
   }
-
 }
-
 function initTabs() {
   const strategyItems = window.WS_CONFIG?.planes?.strategy || [];
   const systemItems = window.WS_CONFIG?.planes?.system || [];
