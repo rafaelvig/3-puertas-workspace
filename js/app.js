@@ -280,7 +280,7 @@ function getStatusLabel(status) {
   return "Pendiente";
 }
 
-function toggleModuleDone(blockId, subKey) {
+async function toggleModuleDone(blockId, subKey) {
   const store = loadStore();
   const node = ensureSubNode(store, blockId, subKey);
 
@@ -288,7 +288,7 @@ function toggleModuleDone(blockId, subKey) {
   node.reviewedAt = node.done ? new Date().toISOString() : null;
 
   saveStore(store);
-  renderAll();
+  await renderAll();
 }
 
 function getAllModules() {
@@ -575,16 +575,17 @@ function rerenderOpenDrawer() {
       `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
   }
 
-  if (body) {
-    body.innerHTML = renderAccordion(block);
-    wireAccordion(body);
-  }
+if (body) {
+  body.innerHTML = `<div class="mini">Actualizando...</div>`;
+  body.innerHTML = await renderAccordion(block);
+  wireAccordion(body);
+}
 }
 
-function renderAll() {
+async function renderAll() {
   renderWorkspaceProgress();
   render();
-  rerenderOpenDrawer();
+  await rerenderOpenDrawer();
 }
 
 /* -----------------------
