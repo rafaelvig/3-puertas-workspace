@@ -190,6 +190,7 @@ function ensureSubNode(store, blockId, subKey) {
     notes: [],
     links: [],
     files: [],
+    theory: [],
     surveys: [],
     done: false,
     reviewedAt: null
@@ -202,6 +203,7 @@ function countItems(node) {
     (node?.notes?.length || 0) +
     (node?.links?.length || 0) +
     (node?.files?.length || 0) +
+       (node?.theory?.length || 0) +
     (node?.surveys?.length || 0)
   );
 }
