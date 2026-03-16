@@ -655,8 +655,8 @@ function renderAccordion(block) {
         <div class="acc-body">
           <div class="row-actions">
             ${renderModuleControls(block.id, subKey, node)}
-            <button class="btn" type="button" data-action="upload">Subir documento</button>
-            <button class="btn" type="button" data-action="upload-theory">Subir material teórico</button>
+           <button class="btn btn-doc" type="button" data-action="upload">Subir documento</button>
+<button class="btn btn-theory" type="button" data-action="upload-theory">Subir material teórico</button>
             <button class="btn" type="button" data-action="link">Agregar link</button>
             <button class="btn" type="button" data-action="note-open">Agregar nota</button>
             ${renderSurveyButton(block, sub.id)}
