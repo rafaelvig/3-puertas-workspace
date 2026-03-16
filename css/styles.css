@@ -841,3 +841,20 @@ body{
     padding: 0 16px 14px;
   }
 }
+.logo-main {
+  height: 38px;
+  width: auto;
+}
+
+.logo-client {
+  height: 32px;
+  width: auto;
+  margin-left: 14px;
+  opacity: 0.9;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
