@@ -677,3 +677,59 @@ body{
     grid-column:span 12;
   }
 }
+/* =========================
+   BOTONES DOCUMENTO / TEORIA
+========================= */
+.btn-doc {
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+
+.btn-doc:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.28);
+}
+
+.btn-theory {
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  background: rgba(103, 232, 249, 0.10);
+  color: #dffaff;
+}
+
+.btn-theory:hover {
+  background: rgba(103, 232, 249, 0.18);
+  border-color: rgba(103, 232, 249, 0.42);
+}
+
+/* =========================
+   BLOQUES DE LISTA INTERNA
+========================= */
+.mini-section-title {
+  margin-bottom: 6px;
+}
+
+.mini-section-title span {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.82;
+}
+
+.mini-list {
+  margin: 0 0 10px 16px;
+  padding: 0;
+}
+
+.mini-list li {
+  margin-bottom: 6px;
+}
+
+.mini-list.theory a {
+  color: #bfefff;
+}
+
+.mini-list.files a {
+  color: inherit;
+}
