@@ -34,21 +34,21 @@ body{
   align-items:center;
   justify-content:space-between;
   gap: 16px;
-  padding: 14px 18px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--line);
   background: rgba(11, 15, 26, .70);
   backdrop-filter: blur(12px);
 }
 
-.topbar-left{ display:flex; align-items:center; gap: 12px; }
+.topbar-left{ display:flex; align-items:center; gap: 14px; }
 .brand-mark{
   width: 34px; height: 34px;
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(120,106,255,.95), rgba(0,215,255,.75));
   box-shadow: 0 12px 30px rgba(120,106,255,.25);
 }
-.brand-title{ font-weight: 700; letter-spacing: .2px; }
-.brand-subtitle{ font-size: 12px; color: var(--muted); margin-top: 2px; }
+.brand-title{ font-weight: 700; font-size: 15px; letter-spacing: .2px; }
+.brand-subtitle{ font-size: 12px; opacity: 7; color: var(--muted); margin-top: 2px; }
 
 .topbar-center{ display:flex; gap: 10px; align-items:center; }
 .select-wrap select{
@@ -858,4 +858,37 @@ body{
   display: flex;
   align-items: center;
   gap: 14px;
+}
+.company-context{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.logo-client{
+  height:28px;
+  width:auto;
+  opacity:.95;
+}
+
+/* selects */
+
+.select-wrap select{
+  padding:6px 10px;
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.05);
+}
+
+/* derecha */
+
+.topbar-right{
+  display:flex;
+  align-items:center;
+}
+
+.pill{
+  padding:6px 12px;
+  border-radius:20px;
+  font-size:12px;
+  background:rgba(255,255,255,.08);
 }
