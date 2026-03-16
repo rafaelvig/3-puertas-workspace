@@ -733,3 +733,32 @@ body{
 .mini-list.files a {
   color: inherit;
 }
+
+/* =========================
+   BADGE MATERIAL TEORICO
+========================= */
+.mini-theory-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mini-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mini-badge-theory {
+  background: rgba(103, 232, 249, 0.14);
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  color: #dffaff;
+}
