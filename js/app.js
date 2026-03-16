@@ -653,6 +653,7 @@ function renderAccordion(block) {
           <div class="row-actions">
             ${renderModuleControls(block.id, subKey, node)}
             <button class="btn" type="button" data-action="upload">Subir documento</button>
+            <button class="btn" type="button" data-action="upload-theory">Subir material teórico</button>
             <button class="btn" type="button" data-action="link">Agregar link</button>
             <button class="btn" type="button" data-action="note-open">Agregar nota</button>
             ${renderSurveyButton(block, sub.id)}
@@ -707,6 +708,11 @@ function wireAccordion(root) {
       onUpload(realBlockId, subKey, item);
       return;
     }
+
+    if (action === "upload-theory") {
+  onUploadTheory(realBlockId, subKey, item);
+  return;
+}
 
     if (action === "link") {
       onAddLink(realBlockId, subKey, item);
@@ -833,12 +839,60 @@ function wireAccordion(root) {
     if (type === "note") node.notes.splice(index, 1);
     if (type === "link") node.links.splice(index, 1);
     if (type === "file") node.files.splice(index, 1);
+    if (type === "theory") node.theory.splice(index, 1);
 
     resetModuleDone(store, realBlockId, subKey);
     saveStore(store);
 
     refreshSubUI(realBlockId, subKey, item);
   });
+}
+
+function onUploadTheory(blockId, subKey, accItem) {
+  const input = $(".file-input", accItem);
+  if (!input) return;
+
+  input.value = "";
+
+  input.onchange = async () => {
+    const f = input.files?.[0];
+    if (!f) return;
+
+    console.log("Material teórico seleccionado:", {
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      blockId,
+      subKey
+    });
+
+    try {
+      const saved = await uploadFileToStorage(f, blockId, subKey);
+      console.log("Material teórico guardado en Supabase:", saved);
+
+      const store = loadStore();
+      const node = ensureSubNode(store, blockId, subKey);
+
+      node.theory.unshift({
+        name: f.name,
+        size: f.size,
+        ts: Date.now(),
+        remoteId: saved?.id || null,
+        url: saved?.file_url || "",
+        path: saved?.file_path || ""
+      });
+
+      resetModuleDone(store, blockId, subKey);
+      saveStore(store);
+
+      refreshSubUI(blockId, subKey, accItem);
+    } catch (err) {
+      console.error("UPLOAD THEORY ERROR:", err);
+      alert(err?.message || "No se pudo subir el material teórico.");
+    }
+  };
+
+  input.click();
 }
 
 function onAddLink(blockId, subKey, accItem) {
@@ -936,16 +990,14 @@ function refreshSubUI(blockId, subKey, accItem) {
   render();
   rerenderOpenDrawer();
 }
+const notes = node?.notes || [];
+const links = node?.links || [];
+const files = node?.files || [];
+const theory = node?.theory || [];
 
-function renderMiniList(node) {
-  const notes = node?.notes || [];
-  const links = node?.links || [];
-  const files = node?.files || [];
-
-  if (notes.length + links.length + files.length === 0) {
-    return "Sin contenido cargado";
-  }
-
+if (notes.length + links.length + files.length + theory.length === 0) {
+  return "Sin contenido cargado";
+}
   const parts = [];
 
   const delBtn = (type, index) =>
@@ -1029,6 +1081,26 @@ function renderMiniList(node) {
 
   return parts.join("");
 }
+if (theory.length) {
+  parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Material teórico</span></div>`);
+
+  const li = theory.map((f, i) => {
+    const label = escapeHtml(trunc(f.name, 60));
+    const href = f.url ? escapeAttr(f.url) : null;
+
+    return [
+      `<li>`,
+      href
+        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">${label}</a>`
+        : label,
+      delBtn("theory", i),
+      `</li>`
+    ].join("");
+  }).join("");
+
+  parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
+}
+
 
 /* -----------------------
    Utils (safe)
