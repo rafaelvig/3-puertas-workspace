@@ -63,7 +63,8 @@ async function logWorkspaceLogin(user) {
 /* -----------------------
    SUPABASE
 ------------------------ */
-async function uploadFileToStorage(file, blockId, subKey) {
+
+async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
   const user = await getSessionUser();
   if (!user?.id) throw new Error("No hay usuario autenticado");
 
@@ -102,7 +103,7 @@ async function uploadFileToStorage(file, blockId, subKey) {
     channel_id: state.channelId,
     block_id: blockId,
     subtopic: subKey,
-    type: "file",
+    type: itemType,
     content: file.name,
     file_path: path,
     file_url: signedData?.signedUrl || null,
@@ -140,7 +141,61 @@ async function loadWorkspace(blockId, subtopic) {
 
   return data || [];
 }
+function buildNodeFromWorkspaceItems(items, localNode = {}) {
+  const node = {
+    notes: [],
+    links: [],
+    files: [],
+    theory: [],
+    surveys: Array.isArray(localNode?.surveys) ? localNode.surveys : [],
+    done: typeof localNode?.done === "boolean" ? localNode.done : false,
+    reviewedAt: localNode?.reviewedAt || null
+  };
 
+  (items || []).forEach(row => {
+    if (row.type === "note") {
+      node.notes.push({
+        text: row.content || "",
+        ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+        remoteId: row.id
+      });
+      return;
+    }
+
+    if (row.type === "link") {
+      node.links.push({
+        url: row.content || "",
+        title: row.title || "",
+        ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+        remoteId: row.id
+      });
+      return;
+    }
+
+    if (row.type === "file") {
+      node.files.push({
+        name: row.content || "Archivo",
+        ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+        remoteId: row.id,
+        url: row.file_url || "",
+        path: row.file_path || ""
+      });
+      return;
+    }
+
+    if (row.type === "theory") {
+      node.theory.push({
+        name: row.content || "Material teórico",
+        ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+        remoteId: row.id,
+        url: row.file_url || "",
+        path: row.file_path || ""
+      });
+    }
+  });
+
+  return node;
+}
 async function saveNote(blockId, subtopic, text) {
   const cleanText = (text || "").trim();
   if (!cleanText) return null;
@@ -535,8 +590,8 @@ function renderAll() {
 /* -----------------------
    Drawer
 ------------------------ */
-function openDrawer(blockId) {
-  const items = window.WS_CONFIG?.planes?.[state.tab] || [];
+async function openDrawer(blockId) {
+const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
   if (!block) return;
 
@@ -554,8 +609,9 @@ function openDrawer(blockId) {
     drawerMeta.textContent =
       `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
   }
-  if (body) body.innerHTML = renderAccordion(block);
-
+if (body) body.innerHTML = `<div class="mini">Cargando...</div>`;
+if (body) body.innerHTML = await renderAccordion(block);
+  
   const drawer = $("#drawer");
   if (drawer) {
     drawer.classList.add("is-open");
@@ -622,7 +678,7 @@ function initDrawer() {
 /* -----------------------
    Accordion render + wiring
 ------------------------ */
-function renderAccordion(block) {
+async function renderAccordion(block) {
   const store = loadStore();
   const subs = block.subs || [];
 
@@ -638,56 +694,61 @@ function renderAccordion(block) {
     `;
   }
 
-  const accItems = subs.map((sub) => {
-    const subKey = sub.id;
-    const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
-    const node = ensureSubNode(store, block.id, subKey);
-    const cnt = countItems(node);
-    const status = getSubStatus(node);
+  const htmlParts = await Promise.all(
+    subs.map(async (sub) => {
+      const subKey = sub.id;
+      const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
 
-    return `
-      <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
-        <button class="acc-header" type="button">
-          <span class="acc-title">${escapeHtml(subLabel)}</span>
-          <span class="acc-count">${cnt}</span>
-        </button>
+      const localNode = ensureSubNode(store, block.id, subKey);
+      const remoteItems = await loadWorkspace(block.id, subKey);
+      const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
 
-        <div class="acc-body">
-          <div class="row-actions">
-            ${renderModuleControls(block.id, subKey, node)}
-           <button class="btn btn-doc" type="button" data-action="upload">Subir documento</button>
-<button class="btn btn-theory" type="button" data-action="upload-theory">Subir material teórico</button>
-            <button class="btn" type="button" data-action="link">Agregar link</button>
-            <button class="btn" type="button" data-action="note-open">Agregar nota</button>
-            ${renderSurveyButton(block, sub.id)}
-          </div>
+      const cnt = countItems(node);
+      const status = getSubStatus(node);
 
-          <input class="file-input" type="file" style="display:none" />
+      return `
+        <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
+          <button class="acc-header" type="button">
+            <span class="acc-title">${escapeHtml(subLabel)}</span>
+            <span class="acc-count">${cnt}</span>
+          </button>
 
-          <div class="note-compose" style="display:none; margin-top:10px;">
-            <textarea
-              class="note-new-text"
-              rows="4"
-              style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;"
-              placeholder="Escribí una nota..."
-            ></textarea>
-            <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
-              <button class="btn" type="button" data-action="note-save-new">Guardar</button>
-              <button class="btn" type="button" data-action="note-cancel-new">Cancelar</button>
+          <div class="acc-body">
+            <div class="row-actions">
+              ${renderModuleControls(block.id, subKey, node)}
+              <button class="btn btn-doc" type="button" data-action="upload">Subir documento</button>
+              <button class="btn btn-theory" type="button" data-action="upload-theory">Subir material teórico</button>
+              <button class="btn" type="button" data-action="link">Agregar link</button>
+              <button class="btn" type="button" data-action="note-open">Agregar nota</button>
+              ${renderSurveyButton(block, sub.id)}
+            </div>
+
+            <input class="file-input" type="file" style="display:none" />
+
+            <div class="note-compose" style="display:none; margin-top:10px;">
+              <textarea
+                class="note-new-text"
+                rows="4"
+                style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;"
+                placeholder="Escribí una nota..."
+              ></textarea>
+              <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                <button class="btn" type="button" data-action="note-save-new">Guardar</button>
+                <button class="btn" type="button" data-action="note-cancel-new">Cancelar</button>
+              </div>
+            </div>
+
+            <div class="mini" style="margin-top:10px;">
+              ${renderMiniList(node)}
             </div>
           </div>
-
-          <div class="mini" style="margin-top:10px;">
-            ${renderMiniList(node)}
-          </div>
         </div>
-      </div>
-    `;
-  }).join("");
+      `;
+    })
+  );
 
-  return `<div class="accordion">${accItems}</div>`;
+  return `<div class="accordion">${htmlParts.join("")}</div>`;
 }
-
 function wireAccordion(root) {
   if (!root) return;
 
@@ -881,7 +942,7 @@ function onUploadTheory(blockId, subKey, accItem) {
     });
 
     try {
-      const saved = await uploadFileToStorage(f, blockId, subKey);
+const saved = await uploadFileToStorage(f, blockId, subKey, "theory");
       console.log("Material teórico guardado en Supabase:", saved);
 
       const store = loadStore();
