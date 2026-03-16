@@ -1008,14 +1008,18 @@ function renderMiniList(node) {
 
   const delBtn = (type, index) =>
     `<button data-del="${type}" data-index="${index}"
-      style="margin-left:8px; font-size:11px; opacity:.7; cursor:pointer; border:0; background:none; color:#ff6b6b;">✕</button>`;
+      style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:#ff6b6b;">✕</button>`;
 
   const editBtn = (index) =>
     `<button data-note-edit="${index}"
-      style="margin-left:8px; font-size:11px; opacity:.7; cursor:pointer; border:0; background:none; color:rgba(255,255,255,.8); text-decoration:underline;">Editar</button>`;
+      style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:rgba(255,255,255,.8);text-decoration:underline;">Editar</button>`;
+
+  /* =========================
+     NOTAS
+  ========================= */
 
   if (notes.length) {
-    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Notas</span></div>`);
+    parts.push(`<div class="mini-section-title"><span>Notas</span></div>`);
 
     const li = notes.map((n, i) => {
       const textView = escapeHtml(trunc(n.text, 300));
@@ -1028,12 +1032,12 @@ function renderMiniList(node) {
         editBtn(i),
         delBtn("note", i),
         `</div>`,
-        `<div class="note-edit" data-note-editbox="${i}" style="display:none; margin-top:8px;">`,
-        `<textarea rows="4"`,
-        ` style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;">`,
+        `<div class="note-edit" data-note-editbox="${i}" style="display:none;margin-top:8px;">`,
+        `<textarea rows="4"
+          style="width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:inherit;padding:10px;resize:vertical;">`,
         textEdit,
         `</textarea>`,
-        `<div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">`,
+        `<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">`,
         `<button class="btn" type="button" data-note-save="${i}">Guardar</button>`,
         `<button class="btn" type="button" data-note-cancel="${i}">Cancelar</button>`,
         `</div>`,
@@ -1042,19 +1046,27 @@ function renderMiniList(node) {
       ].join("");
     }).join("");
 
-    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
+    parts.push(`<ul class="mini-list">${li}</ul>`);
   }
 
+  /* =========================
+     LINKS
+  ========================= */
+
   if (links.length) {
-    parts.push(`<div style="margin-bottom:6px;"><span style="opacity:.8">Links</span></div>`);
+    parts.push(`<div class="mini-section-title"><span>Links</span></div>`);
 
     const li = links.map((l, i) => {
-      const label = l.title ? escapeHtml(trunc(l.title, 60)) : escapeHtml(trunc(l.url, 60));
+      const label = l.title
+        ? escapeHtml(trunc(l.title, 60))
+        : escapeHtml(trunc(l.url, 60));
+
       const href = escapeAttr(l.url);
 
       return [
         `<li>`,
-        `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:underline; opacity:.9;">`,
+        `<a href="${href}" target="_blank" rel="noopener noreferrer"
+          style="text-decoration:underline;opacity:.9;">`,
         label,
         `</a>`,
         delBtn("link", i),
@@ -1062,48 +1074,61 @@ function renderMiniList(node) {
       ].join("");
     }).join("");
 
-    parts.push(`<ul style="margin:0 0 10px 16px; padding:0;">${li}</ul>`);
+    parts.push(`<ul class="mini-list">${li}</ul>`);
   }
 
-if (files.length) {
-  parts.push(`<div class="mini-section-title"><span>Archivos</span></div>`);
+  /* =========================
+     ARCHIVOS
+  ========================= */
 
-  const li = files.map((f, i) => {
-    const label = escapeHtml(trunc(f.name, 60));
-    const href = f.url ? escapeAttr(f.url) : null;
+  if (files.length) {
+    parts.push(`<div class="mini-section-title"><span>Archivos</span></div>`);
 
-    return [
-      `<li>`,
-      href
-        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline; opacity:.9;">${label}</a>`
-        : label,
-      delBtn("file", i),
-      `</li>`
-    ].join("");
-  }).join("");
+    const li = files.map((f, i) => {
+      const label = escapeHtml(trunc(f.name, 60));
+      const href = f.url ? escapeAttr(f.url) : null;
 
-  parts.push(`<ul class="mini-list files">${li}</ul>`);
-}
+      return [
+        `<li>`,
+        href
+          ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
+              style="text-decoration:underline;opacity:.9;">${label}</a>`
+          : label,
+        delBtn("file", i),
+        `</li>`
+      ].join("");
+    }).join("");
 
-if (theory.length) {
-  parts.push(`<div class="mini-section-title"><span>Material teórico</span></div>`);
+    parts.push(`<ul class="mini-list files">${li}</ul>`);
+  }
 
-  const li = theory.map((f, i) => {
-    const label = escapeHtml(trunc(f.name, 60));
-    const href = f.url ? escapeAttr(f.url) : null;
+  /* =========================
+     MATERIAL TEORICO
+  ========================= */
 
-    return [
-      `<li class="mini-theory-item">`,
-      `<span class="mini-badge mini-badge-theory">Clase</span>`,
-      href
-        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline; opacity:.95;">${label}</a>`
-        : label,
-      delBtn("theory", i),
-      `</li>`
-    ].join("");
-  }).join("");
+  if (theory.length) {
+    parts.push(`<div class="mini-section-title"><span>Material teórico</span></div>`);
 
-  parts.push(`<ul class="mini-list theory">${li}</ul>`);
+    const li = theory.map((f, i) => {
+      const label = escapeHtml(trunc(f.name, 60));
+      const href = f.url ? escapeAttr(f.url) : null;
+
+      return [
+        `<li class="mini-theory-item">`,
+        `<span class="mini-badge mini-badge-theory">Clase</span>`,
+        href
+          ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
+              style="text-decoration:underline;opacity:.95;">${label}</a>`
+          : label,
+        delBtn("theory", i),
+        `</li>`
+      ].join("");
+    }).join("");
+
+    parts.push(`<ul class="mini-list theory">${li}</ul>`);
+  }
+
+  return parts.join("");
 }
 
 
