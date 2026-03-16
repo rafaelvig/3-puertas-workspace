@@ -334,6 +334,14 @@ function resetModuleDone(store, blockId, subKey) {
   node.reviewedAt = null;
 }
 
+async function logoutWorkspace() {
+  const { error } = await sb.auth.signOut();
+  if (error) {
+    console.error("logout error:", error);
+    alert("No se pudo cerrar la sesión.");
+  }
+}
+
 /* -----------------------
    Init: selectors + tabs
 ------------------------ */
@@ -1150,6 +1158,7 @@ function initApp() {
   initSelectors();
   initTabs();
   initDrawer();
+  $("#btnLogout")?.addEventListener("click", logoutWorkspace);
 }
 
 async function boot() {
