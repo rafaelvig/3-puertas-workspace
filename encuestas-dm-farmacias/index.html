@@ -1,54 +1,84 @@
 <!doctype html>
 <html lang="es">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Encuesta DM Farmacias</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 
-  <link rel="stylesheet" href="css/styles.css" />
+<title>Encuesta Droguería Monumento</title>
 
-  <!-- SortableJS (para ranking drag & drop) -->
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<link rel="stylesheet" href="css/styles.css"/>
+
 </head>
 
 <body>
 
-  <main class="wrap">
-    <header class="top">
-      <h1>Estudio de Estructura Financiera del Canal Farmacéutico 2026</h1>
-      <p class="sub">
-        La información es confidencial y se utilizará de manera agregada y estadística.
-      </p>
-        <p class="time-estimate">
-    Tiempo estimado de respuesta: 5 minutos
-  </p>
+<main class="wrap">
 
-      <div class="progress">
-        <div class="progress-bar" id="progressBar"></div>
-      </div>
-      <div class="progress-meta">
-        <span id="progressText">0%</span>
-        <span id="stepText">Pregunta 1 de 1</span>
-      </div>
-    </header>
+<!-- BIENVENIDA -->
 
-    <section class="card" id="card">
-      <!-- Render dinámico -->
-    </section>
+<section id="welcomeScreen">
 
-    <footer class="nav">
-      <button class="btn" id="btnBack" type="button">Atrás</button>
-      <button class="btn primary" id="btnNext" type="button">Siguiente</button>
-    </footer>
+<h1>Estudio de Estructura Financiera del Canal Farmacéutico 2026</h1>
 
-    <pre class="debug" id="debug" style="display:none;"></pre>
-  </main>
+<p>
+Su participación es confidencial y los datos serán utilizados únicamente
+de forma agregada.
+</p>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
+<p>
+Al completar la encuesta participará de un sorteo.
+</p>
+
+<button id="btnStart">Comenzar</button>
+
+</section>
+
+<!-- LOGIN -->
+
+<section id="loginScreen" style="display:none">
+
+<h2>Ingrese su email</h2>
+
+<input id="emailInput" type="email" placeholder="email@farmacia.com"/>
+
+<button id="btnSendCode">
+Enviar código
+</button>
+
+</section>
+
+<!-- VERIFICACION -->
+
+<section id="verifyScreen" style="display:none">
+
+<h2>Ingrese el código recibido</h2>
+
+<input id="otpInput" type="text" placeholder="Código"/>
+
+<button id="btnVerifyCode">
+Verificar
+</button>
+
+</section>
+
+<!-- ENCUESTA -->
+
+<section id="surveyScreen" style="display:none">
+
+<div id="surveyApp"></div>
+
+</section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="js/supabase.js"></script>
+<script src="js/config.js"></script>
 <script src="js/cities_ar.js"></script>
-<script src="js/form-access.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/app.js"></script>
+
 </body>
 </html>
