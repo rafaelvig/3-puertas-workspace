@@ -559,44 +559,13 @@ function render() {
       openDrawer(id);
     });
   }
-}
 
+  highlightActiveCard();
+}
 async function rerenderOpenDrawer() {
-  const drawer = $("#drawer");
-  if (!drawer) return;
-  if (!drawer.classList.contains("is-open")) return;
   if (!state.openBlockId) return;
-
-  const items = window.WS_CONFIG?.planes?.[state.tab] || [];
-  const block = items.find(x => x.id === state.openBlockId);
-  if (!block) return;
-
-  const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
-  const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
-
-  const drawerTitle = $("#drawerTitle");
-  const drawerMeta = $("#drawerMeta");
-  const body = $("#drawerBody");
-
-  if (drawerTitle) drawerTitle.textContent = block.title;
-  if (drawerMeta) {
-    drawerMeta.textContent =
-      `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
-  }
-
-  if (body) {
-    body.innerHTML = `<div class="mini">Actualizando...</div>`;
-    body.innerHTML = await renderAccordion(block);
-    wireAccordion(body);
-  }
+  await openDrawer(state.openBlockId);
 }
-
-async function renderAll() {
-  renderWorkspaceProgress();
-  render();
-  await rerenderOpenDrawer();
-}
-
 /* -----------------------
    Drawer
 ------------------------ */
@@ -640,23 +609,21 @@ async function openDrawer(blockId) {
 }
 
 function closeDrawer() {
-  const drawer = $("#drawer");
-  if (!drawer) return;
-
-  drawer.classList.remove("is-open");
-  drawer.setAttribute("aria-hidden", "true");
   state.openBlockId = null;
+
+  const panel = $("#detailPanelInner");
+  if (panel) {
+    panel.innerHTML = `<div class="detail-empty">Seleccioná un bloque para ver el detalle.</div>`;
+  }
+
+  highlightActiveCard();
 
   const activeTab = $(".tab.is-active");
   if (activeTab) activeTab.focus();
 }
-
 function initDrawer() {
   if (drawerInitialized) return;
   drawerInitialized = true;
-
-  $("#drawerClose")?.addEventListener("click", closeDrawer);
-  $("#drawerBackdrop")?.addEventListener("click", closeDrawer);
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeDrawer();
