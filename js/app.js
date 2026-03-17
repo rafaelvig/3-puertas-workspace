@@ -664,6 +664,33 @@ function highlightActiveCard() {
     card.classList.toggle("is-active", card.dataset.id === state.openBlockId);
   });
 }
+
+function renderSurveyButton(block, subId) {
+  const file = block?.surveys?.[subId];
+
+  if (file) {
+    return `
+      <a
+        class="btn btn-survey active"
+        href="${escapeAttr(file)}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Encuesta
+      </a>
+    `;
+  }
+
+  return `
+    <button
+      class="btn btn-survey disabled"
+      type="button"
+      disabled
+    >
+      Encuesta
+    </button>
+  `;
+}
 /* -----------------------
    Accordion render + wiring
 ------------------------ */
