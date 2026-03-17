@@ -372,8 +372,8 @@ const questions = [
     options: ["Menos de 1% mensual","1–3% mensual","3–5% mensual","Más de 5% mensual","No lo tengo medido"]
   }
 ];
-let ACCESS = null;
-const state = { i: 0, answers: {} };
+const FORM_SLUG = "dm-farmacias";
+const state = { i: 0, answers: {}, pharmacyName: "", respondentName: "" };
 
 const card = $("#card");
 const btnBack = $("#btnBack");
@@ -777,39 +777,52 @@ console.log("RESPUESTAS:", state.answers);
 showFinish();
 });
 
-async function submitSurveyResponse(){
+async function submitSurveyResponse() {
+  const { data: { user }, error: userError } = await sb.auth.getUser();
 
-const {data:{user}} = await sb.auth.getUser();
+  if (userError || !user) {
+    return { ok: false, message: "Su sesión no es válida. Ingrese nuevamente." };
+  }
 
-const payload = {
-  form_slug: "dm-farmacias",
-  user_id: user.id,
-  email: user.email,
-  response_json: {
-    survey: "dm-farmacias",
-    pharmacy_name: state.pharmacyName,
-    respondent_name: state.respondentName,
-    answers: state.answers,
-    submitted_at: new Date().toISOString()
-  },
-  submitted_at: new Date().toISOString(),
-  user_agent: navigator.userAgent
-};
-   await sb.from("form_responses").insert(payload);
+  const nowIso = new Date().toISOString();
+  const payload = {
+    survey: FORM_SLUG,
+    submitted_at: nowIso,
+    pharmacy_name: state.pharmacyName || null,
+    respondent_name: state.respondentName || null,
+    answers: state.answers
+  };
 
+  const row = {
+    form_slug: FORM_SLUG,
+    user_id: user.id,
+    email: user.email,
+    submitted_at: nowIso,
+    response_json: payload,
+    reward_email: user.email,
+    reward_name: state.respondentName || null,
+    wants_reward: true,
+    user_agent: navigator.userAgent
+  };
 
+  const { data, error } = await sb
+    .from("form_responses")
+    .insert(row)
+    .select("id")
+    .single();
 
-if(error){
+  if (error) {
+    console.error("submitSurveyResponse error:", error);
+    const msg = String(error.message || "");
+    if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
+      return { ok: false, message: "Este email ya registró una respuesta." };
+    }
+    return { ok: false, message: "Error al guardar la encuesta." };
+  }
 
-alert("Error guardando respuesta");
-
-return;
-
+  return { ok: true, responseId: data?.id || null };
 }
 
-showFinish();
-
-}
 
 function showFinish(){
   card.innerHTML = "";
@@ -833,23 +846,14 @@ function showFinish(){
   progressText.textContent = "100%";
   stepText.textContent = "Encuesta finalizada";
 }
-async function initSurveyAccess(){
-  const result = await validateAccessCode();
-
-  if(!result.ok){
-    document.body.innerHTML = `
-      <div style="max-width:600px;margin:80px auto;font-family:sans-serif;text-align:center">
-        <h2>Acceso inválido</h2>
-        <p>${result.message}</p>
-      </div>
-    `;
-    return;
+function initSurvey(){
+  const surveyApp = document.querySelector("#surveyApp");
+  const cardEl = document.querySelector("#card");
+  if (surveyApp && cardEl && cardEl.parentElement !== surveyApp){
+    surveyApp.appendChild(cardEl);
+    surveyApp.appendChild(document.querySelector(".nav"));
   }
-
-  ACCESS = result;
-  console.log("Farmacia validada:", ACCESS.pharmacyName);
-
   render();
 }
 
-document.addEventListener("DOMContentLoaded", initSurveyAccess);   
+window.initSurvey = initSurvey;
