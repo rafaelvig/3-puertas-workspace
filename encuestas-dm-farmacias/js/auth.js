@@ -40,25 +40,10 @@ async function continueAfterLogin() {
     return;
   }
 
-  const pharmacyName = ($auth("#pharmacyNameInput")?.value || "").trim();
-  const respondentName = ($auth("#respondentNameInput")?.value || "").trim();
-
-  if (window.state) {
-    window.state.pharmacyName = pharmacyName;
-    window.state.respondentName = respondentName;
-  }
-
-  showScreen("surveyScreen");
-
-  if (typeof window.initSurvey === "function") {
-    window.initSurvey();
-  }
+  showScreen("verifyScreen");
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await sb.auth.signOut();
-  showScreen("welcomeScreen");
-
   $auth("#btnStart")?.addEventListener("click", () => {
     showScreen("loginScreen");
   });
@@ -82,29 +67,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { error } = await sb.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: true
+        shouldCreateUser: true,
+        emailRedirectTo: "https://funnel-b2b.vercel.app/encuestas-dm-farmacias/index.html"
       }
     });
 
     if (error) {
       console.error("signInWithOtp error:", error);
-      alert("No se pudo enviar el código.");
+      alert("No se pudo enviar el enlace.");
       return;
     }
 
-    showScreen("verifyScreen");
+    alert("Le enviamos un enlace de acceso a su casilla de email.");
   });
 
   $auth("#btnVerifyCode")?.addEventListener("click", async () => {
-    const email = ($auth("#emailInput")?.value || "").trim().toLowerCase();
-    const token = ($auth("#otpInput")?.value || "").trim();
     const pharmacyName = ($auth("#pharmacyNameInput")?.value || "").trim();
     const respondentName = ($auth("#respondentNameInput")?.value || "").trim();
-
-    if (!email || !token) {
-      alert("Complete email y código.");
-      return;
-    }
 
     if (!pharmacyName) {
       alert("Ingrese el nombre de la farmacia.");
@@ -116,18 +95,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const { error } = await sb.auth.verifyOtp({
-      email,
-      token,
-      type: "email"
-    });
-
-    if (error) {
-      console.error("verifyOtp error:", error);
-      alert("Código inválido o vencido.");
-      return;
+    if (window.state) {
+      window.state.pharmacyName = pharmacyName;
+      window.state.respondentName = respondentName;
     }
 
-    await continueAfterLogin();
+    showScreen("surveyScreen");
+
+    if (typeof window.initSurvey === "function") {
+      window.initSurvey();
+    }
   });
+
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (session?.user) {
+    await continueAfterLogin();
+  } else {
+    showScreen("welcomeScreen");
+  }
 });
