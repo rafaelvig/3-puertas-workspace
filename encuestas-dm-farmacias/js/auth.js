@@ -56,12 +56,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     showScreen("loginScreen");
   });
 
-  $auth("#btnSendCode")?.addEventListener("click", async () => {
-    const email = ($auth("#emailInput")?.value || "").trim().toLowerCase();
+$auth("#btnSendCode")?.addEventListener("click", async () => {
+  const btn = $auth("#btnSendCode");
+  const emailInput = $auth("#emailInput");
+  const email = (emailInput?.value || "").trim().toLowerCase();
 
-    if (!email) {
-      alert("Ingrese un email válido.");
-      return;
+  if (!email) {
+    alert("Ingrese un email válido.");
+    return;
+  }
+
+  if (btn?.dataset.loading === "1") return;
+
+  try {
+    if (btn) {
+      btn.dataset.loading = "1";
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+    }
+
+    if (emailInput) {
+      emailInput.disabled = true;
     }
 
     const { error } = await sb.auth.signInWithOtp({
@@ -74,12 +89,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (error) {
       console.error("signInWithOtp error:", error);
-      alert("No se pudo enviar el enlace.");
+
+      const msg = String(error.message || "").toLowerCase();
+
+      if (msg.includes("rate limit") || msg.includes("too many requests")) {
+        alert("Se alcanzó temporalmente el límite de envíos. Espere unos minutos antes de intentar nuevamente.");
+      } else {
+        alert(error.message || "No se pudo enviar el enlace.");
+      }
+
       return;
     }
 
     alert("Le enviamos un enlace de acceso a su casilla de email.");
-  });
+  } finally {
+    if (btn) {
+      btn.dataset.loading = "0";
+      btn.disabled = false;
+      btn.textContent = "Enviar enlace";
+    }
+
+    if (emailInput) {
+      emailInput.disabled = false;
+    }
+  }
+});
 
   $auth("#btnVerifyCode")?.addEventListener("click", async () => {
     const pharmacyName = ($auth("#pharmacyNameInput")?.value || "").trim();
