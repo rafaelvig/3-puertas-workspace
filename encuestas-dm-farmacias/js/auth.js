@@ -1,17 +1,17 @@
-
 const $auth = (sel) => document.querySelector(sel);
 
-function showScreen(id){
-  ["welcomeScreen","loginScreen","verifyScreen","alreadyAnsweredScreen","surveyScreen"]
-    .forEach(x => {
+function showScreen(id) {
+  ["welcomeScreen", "loginScreen", "verifyScreen", "alreadyAnsweredScreen", "surveyScreen"]
+    .forEach((x) => {
       const el = document.getElementById(x);
       if (el) el.classList.add("hidden");
     });
+
   const target = document.getElementById(id);
   if (target) target.classList.remove("hidden");
 }
 
-async function hasAlreadyResponded(userId){
+async function hasAlreadyResponded(userId) {
   const { data, error } = await sb
     .from("form_responses")
     .select("id")
@@ -27,7 +27,7 @@ async function hasAlreadyResponded(userId){
   return Array.isArray(data) && data.length > 0;
 }
 
-async function continueAfterLogin(){
+async function continueAfterLogin() {
   const { data: { user }, error } = await sb.auth.getUser();
 
   if (error || !user) {
@@ -49,21 +49,31 @@ async function continueAfterLogin(){
   }
 
   showScreen("surveyScreen");
+
   if (typeof window.initSurvey === "function") {
     window.initSurvey();
   }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
- $auth("#btnStart")?.addEventListener("click", async () => { showScreen("loginScreen");
+  await sb.auth.signOut();
+  showScreen("welcomeScreen");
+
+  $auth("#btnStart")?.addEventListener("click", () => {
+    showScreen("loginScreen");
   });
 
-});
-  $auth("#btnBackToWelcome")?.addEventListener("click", () => showScreen("welcomeScreen"));
-  $auth("#btnBackToLogin")?.addEventListener("click", () => showScreen("loginScreen"));
+  $auth("#btnBackToWelcome")?.addEventListener("click", () => {
+    showScreen("welcomeScreen");
+  });
+
+  $auth("#btnBackToLogin")?.addEventListener("click", () => {
+    showScreen("loginScreen");
+  });
 
   $auth("#btnSendCode")?.addEventListener("click", async () => {
     const email = ($auth("#emailInput")?.value || "").trim().toLowerCase();
+
     if (!email) {
       alert("Ingrese un email válido.");
       return;
@@ -120,6 +130,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await continueAfterLogin();
   });
-
-showScreen("welcomeScreen");
 });
