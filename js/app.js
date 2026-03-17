@@ -435,12 +435,12 @@ function initSelectors() {
 
   state.companyId = companies[0]?.id || null;
 
-  selCompany.addEventListener("change", () => {
+  selCompany.addEventListener("change", async () => {
     state.companyId = selCompany.value;
     syncChannels();
     updateClientLogo();
-    renderAll();
     closeDrawer();
+    await renderAll();
   });
 
   syncChannels();
@@ -459,10 +459,10 @@ function syncChannels() {
 
   state.channelId = channels[0]?.id || null;
 
-  selChannel.onchange = () => {
+  selChannel.onchange = async () => {
     state.channelId = selChannel.value;
-    renderAll();
     closeDrawer();
+    await renderAll();
   };
 }
 
@@ -498,7 +498,7 @@ function initTabs() {
   }
 
   $$(".tab").forEach(btn => {
-    btn.addEventListener("click", () => {
+       btn.addEventListener("click", async () => {
       const targetTab = btn.dataset.tab;
       const items = window.WS_CONFIG?.planes?.[targetTab] || [];
       if (items.length === 0) return;
@@ -508,12 +508,12 @@ function initTabs() {
         b.setAttribute("aria-selected", "false");
       });
 
-      btn.classList.add("is-active");
+       btn.classList.add("is-active");
       btn.setAttribute("aria-selected", "true");
       state.tab = targetTab;
 
-      renderAll();
       closeDrawer();
+      await renderAll();
     });
   });
 }
@@ -565,6 +565,11 @@ function render() {
 async function rerenderOpenDrawer() {
   if (!state.openBlockId) return;
   await openDrawer(state.openBlockId);
+}
+async function renderAll() {
+  renderWorkspaceProgress();
+  render();
+  await rerenderOpenDrawer();
 }
 /* -----------------------
    Drawer
@@ -1330,7 +1335,7 @@ async function boot() {
   if (!ok) return;
 
   initApp();
-  renderAll();
+  await renderAll();
 }
 
 boot();
@@ -1344,14 +1349,14 @@ sb.auth.onAuthStateChange(async (event) => {
     return;
   }
 
-  if (event === "SIGNED_IN") {
+  if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
     const ok = await applyAuthGate();
     if (ok) {
       initApp();
-      renderAll();
+      await renderAll();
     }
     return;
   }
 
-  // Ignorar TOKEN_REFRESHED y otros eventos para no rerenderizar toda la UI
+  // Ignorar TOKEN_REFRESHED y otros eventos
 });
