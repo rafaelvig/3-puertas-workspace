@@ -777,46 +777,33 @@ console.log("RESPUESTAS:", state.answers);
 showFinish();
 });
 
-async function submitSurveyResponse() {
+async function submitSurveyResponse(){
 
-  const payload = {
-    survey: "dm-farmacias",
-    submitted_at: new Date().toISOString(),
-    pharmacy_name: ACCESS?.pharmacyName || null,
-    answers: state.answers
-  };
+const {data:{user}} = await sb.auth.getUser();
 
-  const { data, error } = await sb.rpc("submit_form_response", {
-    p_access_code: ACCESS.accessCode,
-    p_response_json: payload,
-    p_wants_reward: false,
-    p_reward_name: null,
-    p_reward_phone: null,
-    p_reward_email: null,
-    p_user_agent: navigator.userAgent
-  });
+const payload = {
+form_slug:"encuesta_dm_farmacias",
+user_id:user.id,
+email:user.email,
+answers:state.answers,
+submitted_at:new Date().toISOString()
+};
 
-  if (error) {
-    console.error("submitSurveyResponse error:", error);
-    return {
-      ok: false,
-      message: "Error al guardar la encuesta."
-    };
-  }
+const {error}=await sb
+.from("form_responses")
+.insert(payload);
 
-  if (!data || data.ok !== true) {
-    return {
-      ok: false,
-      message: data?.message || "No se pudo guardar."
-    };
-  }
+if(error){
 
-  return {
-    ok: true,
-    responseId: data.response_id
-  };
+alert("Error guardando respuesta");
+
+return;
+
 }
 
+showFinish();
+
+}
 
 function showFinish(){
   card.innerHTML = "";
