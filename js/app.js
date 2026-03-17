@@ -601,76 +601,42 @@ async function renderAll() {
    Drawer
 ------------------------ */
 async function openDrawer(blockId) {
-  console.log("openDrawer", {
-    blockId,
-    tab: state.tab,
-    companyId: state.companyId,
-    channelId: state.channelId
-  });
-
   const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
-  if (!block) {
-    console.warn("openDrawer: bloque no encontrado", { blockId, tab: state.tab, items });
-    return;
-  }
+  if (!block) return;
 
   state.openBlockId = blockId;
 
   const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
 
-  const drawerTitle = $("#drawerTitle");
-  const drawerMeta = $("#drawerMeta");
-  const body = $("#drawerBody");
+  const panel = $("#detailPanelInner");
+  if (!panel) return;
 
-  if (drawerTitle) drawerTitle.textContent = block.title;
-  if (drawerMeta) {
-    drawerMeta.textContent =
-      `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
-  }
-
-  if (body) body.innerHTML = `<div class="mini">Cargando...</div>`;
-
-  const drawer = $("#drawer");
-  if (drawer) {
-    drawer.classList.add("is-open");
-    drawer.setAttribute("aria-hidden", "false");
-  }
-
-  if (body) {
-    body.innerHTML = await renderAccordion(block);
-    wireAccordion(body);
-  }
-
-  const closeBtn = $("#drawerClose");
-  if (closeBtn) closeBtn.focus();
-}
-function renderSurveyButton(block, subId) {
-  const file = block?.surveys?.[subId];
-
-  if (file) {
-    return `
-      <a
-        class="btn btn-survey active"
-        href="${escapeAttr(file)}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Encuesta
-      </a>
-    `;
-  }
-
-  return `
-    <button
-      class="btn btn-survey disabled"
-      type="button"
-      disabled
-    >
-      Encuesta
-    </button>
+  panel.innerHTML = `
+    <div class="detail-head">
+      <div class="detail-title">${escapeHtml(block.title)}</div>
+      <div class="detail-meta">
+        ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+      </div>
+    </div>
+    <div class="mini">Cargando...</div>
   `;
+
+  const accordionHtml = await renderAccordion(block);
+
+  panel.innerHTML = `
+    <div class="detail-head">
+      <div class="detail-title">${escapeHtml(block.title)}</div>
+      <div class="detail-meta">
+        ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+      </div>
+    </div>
+    ${accordionHtml}
+  `;
+
+  wireAccordion(panel);
+  highlightActiveCard();
 }
 
 function closeDrawer() {
@@ -696,7 +662,11 @@ function initDrawer() {
     if (e.key === "Escape") closeDrawer();
   });
 }
-
+function highlightActiveCard() {
+  $$(".card").forEach(card => {
+    card.classList.toggle("is-active", card.dataset.id === state.openBlockId);
+  });
+}
 /* -----------------------
    Accordion render + wiring
 ------------------------ */
