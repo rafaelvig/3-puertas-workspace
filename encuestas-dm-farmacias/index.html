@@ -1,84 +1,113 @@
 <!doctype html>
 <html lang="es">
-
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-
-<title>Encuesta Droguería Monumento</title>
-
-<link rel="stylesheet" href="css/styles.css"/>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Encuesta DM Farmacias</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <style>
+    .hidden{display:none!important}
+    .auth-card{max-width:760px;margin:0 auto}
+    .auth-box{background:#fff;border-radius:18px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+    .auth-box h2{margin-top:0}
+    .field{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+    .field input{padding:14px 16px;border:1px solid #d8d8d8;border-radius:12px;font-size:16px}
+    .auth-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+    .auth-note{font-size:14px;opacity:.8}
+  </style>
 </head>
-
 <body>
+  <main class="wrap">
+    <section id="welcomeScreen" class="auth-card">
+      <div class="auth-box">
+        <h1>Estudio de Estructura Financiera del Canal Farmacéutico 2026</h1>
+        <p>La información es confidencial y se utilizará de manera agregada y estadística.</p>
+        <p>Al completar la encuesta participará de un sorteo.</p>
+        <p class="auth-note">Tiempo estimado de respuesta: 5 minutos.</p>
+        <div class="auth-actions">
+          <button class="btn primary" id="btnStart" type="button">Comenzar</button>
+        </div>
+      </div>
+    </section>
 
-<main class="wrap">
+    <section id="loginScreen" class="auth-card hidden">
+      <div class="auth-box">
+        <h2>Ingresar con email</h2>
+        <p>Le enviaremos un código de acceso por email.</p>
+        <div class="field">
+          <label for="emailInput">Email</label>
+          <input id="emailInput" type="email" placeholder="nombre@farmacia.com.ar" />
+        </div>
+        <div class="auth-actions">
+          <button class="btn" id="btnBackToWelcome" type="button">Atrás</button>
+          <button class="btn primary" id="btnSendCode" type="button">Enviar código</button>
+        </div>
+      </div>
+    </section>
 
-<!-- BIENVENIDA -->
+    <section id="verifyScreen" class="auth-card hidden">
+      <div class="auth-box">
+        <h2>Verificar email</h2>
+        <p>Ingrese el código de 6 dígitos enviado a su casilla.</p>
+        <div class="field">
+          <label for="otpInput">Código</label>
+          <input id="otpInput" type="text" inputmode="numeric" maxlength="6" placeholder="123456" />
+        </div>
+        <div class="field">
+          <label for="pharmacyNameInput">Nombre de la farmacia</label>
+          <input id="pharmacyNameInput" type="text" placeholder="Farmacia Ejemplo" />
+        </div>
+        <div class="field">
+          <label for="respondentNameInput">Su nombre</label>
+          <input id="respondentNameInput" type="text" placeholder="Nombre y apellido" />
+        </div>
+        <div class="auth-actions">
+          <button class="btn" id="btnBackToLogin" type="button">Atrás</button>
+          <button class="btn primary" id="btnVerifyCode" type="button">Ingresar</button>
+        </div>
+      </div>
+    </section>
 
-<section id="welcomeScreen">
+    <section id="alreadyAnsweredScreen" class="auth-card hidden">
+      <div class="auth-box">
+        <h2>Respuesta ya registrada</h2>
+        <p>Este email ya completó la encuesta. Gracias por su participación.</p>
+      </div>
+    </section>
 
-<h1>Estudio de Estructura Financiera del Canal Farmacéutico 2026</h1>
+    <section id="surveyScreen" class="hidden">
+      <header class="top">
+        <h1>Estudio de Estructura Financiera del Canal Farmacéutico 2026</h1>
+        <p class="sub">La información es confidencial y se utilizará de manera agregada y estadística.</p>
+        <p class="time-estimate">Tiempo estimado de respuesta: 5 minutos</p>
+        <div class="progress">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-meta">
+          <span id="progressText">0%</span>
+          <span id="stepText">Pregunta 1 de 1</span>
+        </div>
+      </header>
 
-<p>
-Su participación es confidencial y los datos serán utilizados únicamente
-de forma agregada.
-</p>
+      <section class="card" id="surveyApp">
+        <section class="card" id="card"></section>
+      </section>
 
-<p>
-Al completar la encuesta participará de un sorteo.
-</p>
+      <footer class="nav">
+        <button class="btn" id="btnBack" type="button">Atrás</button>
+        <button class="btn primary" id="btnNext" type="button">Siguiente</button>
+      </footer>
+    </section>
 
-<button id="btnStart">Comenzar</button>
+    <pre class="debug" id="debug" style="display:none;"></pre>
+  </main>
 
-</section>
-
-<!-- LOGIN -->
-
-<section id="loginScreen" style="display:none">
-
-<h2>Ingrese su email</h2>
-
-<input id="emailInput" type="email" placeholder="email@farmacia.com"/>
-
-<button id="btnSendCode">
-Enviar código
-</button>
-
-</section>
-
-<!-- VERIFICACION -->
-
-<section id="verifyScreen" style="display:none">
-
-<h2>Ingrese el código recibido</h2>
-
-<input id="otpInput" type="text" placeholder="Código"/>
-
-<button id="btnVerifyCode">
-Verificar
-</button>
-
-</section>
-
-<!-- ENCUESTA -->
-
-<section id="surveyScreen" style="display:none">
-
-<div id="surveyApp"></div>
-
-</section>
-
-</main>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script src="js/supabase.js"></script>
-<script src="js/config.js"></script>
-<script src="js/cities_ar.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/app.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/cities_ar.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
