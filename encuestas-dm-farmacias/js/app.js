@@ -805,24 +805,20 @@ async function submitSurveyResponse() {
     user_agent: navigator.userAgent
   };
 
-  const { data, error } = await sb
-    .from("form_responses")
-    .insert(row)
-    .select("id")
-    .single();
+const { error } = await sb
+  .from("form_responses")
+  .insert(row);
 
-  if (error) {
-    console.error("submitSurveyResponse error:", error);
-    const msg = String(error.message || "");
-    if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
-      return { ok: false, message: "Este email ya registró una respuesta." };
-    }
-    return { ok: false, message: "Error al guardar la encuesta." };
+if (error) {
+  console.error("submitSurveyResponse error:", error);
+  const msg = String(error.message || "");
+  if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
+    return { ok: false, message: "Este email ya registró una respuesta." };
   }
-
-  return { ok: true, responseId: data?.id || null };
+  return { ok: false, message: error.message || "Error al guardar la encuesta." };
 }
 
+return { ok: true };
 
 function showFinish(){
   card.innerHTML = "";
