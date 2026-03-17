@@ -197,3 +197,19 @@ body{
   color:#ffffff;
   background:#2563eb;
 }
+.auth-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+}
+
+.auth-box {
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+.auth-box h1,
+.auth-box p {
+  color: #1a1a1a;
+}
