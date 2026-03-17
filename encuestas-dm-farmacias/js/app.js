@@ -782,16 +782,22 @@ async function submitSurveyResponse(){
 const {data:{user}} = await sb.auth.getUser();
 
 const payload = {
-form_slug:"encuesta_dm_farmacias",
-user_id:user.id,
-email:user.email,
-answers:state.answers,
-submitted_at:new Date().toISOString()
+  form_slug: "dm-farmacias",
+  user_id: user.id,
+  email: user.email,
+  response_json: {
+    survey: "dm-farmacias",
+    pharmacy_name: state.pharmacyName,
+    respondent_name: state.respondentName,
+    answers: state.answers,
+    submitted_at: new Date().toISOString()
+  },
+  submitted_at: new Date().toISOString(),
+  user_agent: navigator.userAgent
 };
+   await sb.from("form_responses").insert(payload);
 
-const {error}=await sb
-.from("form_responses")
-.insert(payload);
+
 
 if(error){
 
