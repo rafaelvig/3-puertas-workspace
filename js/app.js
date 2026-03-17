@@ -547,8 +547,17 @@ function render() {
     `;
   }).join("");
 
-  $$(".card", grid).forEach(card => {
-    card.addEventListener("click", () => openDrawer(card.dataset.id));
+if (!grid.dataset.bound) {
+  grid.dataset.bound = "1";
+
+  grid.addEventListener("click", (e) => {
+    const card = e.target.closest(".card");
+    if (!card) return;
+
+    const id = card.dataset.id;
+    if (!id) return;
+
+    openDrawer(id);
   });
 }
 
