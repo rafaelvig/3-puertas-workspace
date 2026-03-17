@@ -124,6 +124,31 @@ async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
 
   return data;
 }
+
+async function deleteWorkspaceItemRemote(entry) {
+  if (!entry?.remoteId) return;
+
+  if (entry.path) {
+    const { error: storageError } = await sb
+      .storage
+      .from("workspace-files")
+      .remove([entry.path]);
+
+    if (storageError) {
+      console.error("storage remove error:", storageError);
+    }
+  }
+
+  const { error: rowError } = await sb
+    .from("workspace_items")
+    .delete()
+    .eq("id", entry.remoteId);
+
+  if (rowError) {
+    console.error("workspace_items delete error:", rowError);
+    throw rowError;
+  }
+}
 async function loadWorkspace(blockId, subtopic) {
   const { data, error } = await sb
     .from("workspace_items")
@@ -859,9 +884,13 @@ function wireAccordion(root) {
     }
   });
 
-  root.addEventListener("click", (e) => {
+  root.addEventListener("click", async (e) => {
     const delBtn = e.target.closest("[data-del]");
     if (!delBtn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     const item = delBtn.closest(".acc-item");
     const subKey = item?.getAttribute("data-sub");
@@ -874,15 +903,30 @@ function wireAccordion(root) {
     const store = loadStore();
     const node = ensureSubNode(store, realBlockId, subKey);
 
-    if (type === "note") node.notes.splice(index, 1);
-    if (type === "link") node.links.splice(index, 1);
-    if (type === "file") node.files.splice(index, 1);
-    if (type === "theory") node.theory.splice(index, 1);
+    let entry = null;
+    if (type === "note") entry = node.notes[index];
+    if (type === "link") entry = node.links[index];
+    if (type === "file") entry = node.files[index];
+    if (type === "theory") entry = node.theory[index];
 
-    resetModuleDone(store, realBlockId, subKey);
-    saveStore(store);
+    if (!entry) return;
 
-    refreshSubUI(realBlockId, subKey, item);
+    try {
+      await deleteWorkspaceItemRemote(entry);
+
+      if (type === "note") node.notes.splice(index, 1);
+      if (type === "link") node.links.splice(index, 1);
+      if (type === "file") node.files.splice(index, 1);
+      if (type === "theory") node.theory.splice(index, 1);
+
+      resetModuleDone(store, realBlockId, subKey);
+      saveStore(store);
+
+      refreshSubUI(realBlockId, subKey, item);
+    } catch (err) {
+      console.error("delete item error:", err);
+      alert("No se pudo eliminar el documento.");
+    }
   });
 
   root.dataset.wiredDelegates = "1";
@@ -1043,7 +1087,7 @@ function renderMiniList(node) {
   const parts = [];
 
   const delBtn = (type, index) =>
-    `<button data-del="${type}" data-index="${index}"
+    `<button type="button" data-del="${type}" data-index="${index}"
       style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:#ff6b6b;">✕</button>`;
 
   const editBtn = (index) =>
