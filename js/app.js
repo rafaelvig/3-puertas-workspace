@@ -936,6 +936,8 @@ function wireAccordion(root) {
     if (type === "file") entry = node.files[index];
     if (type === "theory") entry = node.theory[index];
 
+    console.log("DELETE CLICK", { type, index, entry });
+
     if (!entry) return;
 
     try {
@@ -949,58 +951,12 @@ function wireAccordion(root) {
       resetModuleDone(store, realBlockId, subKey);
       saveStore(store);
 
-      refreshSubUI(realBlockId, subKey, item);
+      await refreshSubUI(realBlockId, subKey, item);
     } catch (err) {
       console.error("delete item error:", err);
       alert("No se pudo eliminar el documento.");
     }
   });
-
-  root.dataset.wiredDelegates = "1";
-}
-function onUploadTheory(blockId, subKey, accItem) {
-  const input = $(".file-input", accItem);
-  if (!input) return;
-
-  input.value = "";
-
-  input.onchange = async () => {
-    const f = input.files?.[0];
-    if (!f) return;
-
-    console.log("Material teórico seleccionado:", {
-      name: f.name,
-      type: f.type,
-      size: f.size,
-      blockId,
-      subKey
-    });
-
-    try {
-const saved = await uploadFileToStorage(f, blockId, subKey, "theory");
-      console.log("Material teórico guardado en Supabase:", saved);
-
-      const store = loadStore();
-      const node = ensureSubNode(store, blockId, subKey);
-
-      node.theory.unshift({
-        name: f.name,
-        size: f.size,
-        ts: Date.now(),
-        remoteId: saved?.id || null,
-        url: saved?.file_url || "",
-        path: saved?.file_path || ""
-      });
-
-      resetModuleDone(store, blockId, subKey);
-      saveStore(store);
-
-      refreshSubUI(blockId, subKey, accItem);
-    } catch (err) {
-      console.error("UPLOAD THEORY ERROR:", err);
-      alert(err?.message || "No se pudo subir el material teórico.");
-    }
-  };
 
   input.click();
 }
@@ -1075,7 +1031,7 @@ function onUpload(blockId, subKey, accItem) {
   input.click();
 }
 
-function refreshSubUI(blockId, subKey, accItem) {
+async function refreshSubUI(blockId, subKey, accItem) {
   const store = loadStore();
   const node = ensureSubNode(store, blockId, subKey);
   const status = getSubStatus(node);
@@ -1098,7 +1054,7 @@ function refreshSubUI(blockId, subKey, accItem) {
 
   renderWorkspaceProgress();
   render();
-  rerenderOpenDrawer();
+  await rerenderOpenDrawer();
 }
 
 function renderMiniList(node) {
