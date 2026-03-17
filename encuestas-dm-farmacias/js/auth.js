@@ -55,14 +55,9 @@ async function continueAfterLogin(){
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
- $auth("#btnStart")?.addEventListener("click", async () => {
-  const { data: { session } } = await sb.auth.getSession();
+ $auth("#btnStart")?.addEventListener("click", async () => { showScreen("loginScreen");
+  });
 
-  if (session?.user) {
-    await continueAfterLogin();
-  } else {
-    showScreen("loginScreen");
-  }
 });
   $auth("#btnBackToWelcome")?.addEventListener("click", () => showScreen("welcomeScreen"));
   $auth("#btnBackToLogin")?.addEventListener("click", () => showScreen("loginScreen"));
