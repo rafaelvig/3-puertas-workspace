@@ -601,9 +601,19 @@ async function renderAll() {
    Drawer
 ------------------------ */
 async function openDrawer(blockId) {
+  console.log("openDrawer", {
+    blockId,
+    tab: state.tab,
+    companyId: state.companyId,
+    channelId: state.channelId
+  });
+
   const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
-  if (!block) return;
+  if (!block) {
+    console.warn("openDrawer: bloque no encontrado", { blockId, tab: state.tab, items });
+    return;
+  }
 
   state.openBlockId = blockId;
 
@@ -621,7 +631,6 @@ async function openDrawer(blockId) {
   }
 
   if (body) body.innerHTML = `<div class="mini">Cargando...</div>`;
-  if (body) body.innerHTML = await renderAccordion(block);
 
   const drawer = $("#drawer");
   if (drawer) {
@@ -629,12 +638,14 @@ async function openDrawer(blockId) {
     drawer.setAttribute("aria-hidden", "false");
   }
 
-  if (body) wireAccordion(body);
+  if (body) {
+    body.innerHTML = await renderAccordion(block);
+    wireAccordion(body);
+  }
 
   const closeBtn = $("#drawerClose");
   if (closeBtn) closeBtn.focus();
 }
-
 function renderSurveyButton(block, subId) {
   const file = block?.surveys?.[subId];
 
@@ -1370,7 +1381,12 @@ function initApp() {
 }
 
 async function boot() {
-  $("#btnMagicLink")?.addEventListener("click", sendMagicLink);
+  const btnMagic = $("#btnMagicLink");
+  if (btnMagic && !btnMagic.dataset.bound) {
+    btnMagic.dataset.bound = "1";
+    btnMagic.addEventListener("click", sendMagicLink);
+  }
+
   initLoginEmailSuggestion();
 
   const ok = await applyAuthGate();
@@ -1387,11 +1403,18 @@ sb.auth.onAuthStateChange(async (event) => {
 
   if (event === "SIGNED_OUT") {
     loginLoggedForSession = false;
+    await applyAuthGate();
+    return;
   }
 
-  const ok = await applyAuthGate();
-  if (ok) {
-    initApp();
-    renderAll();
+  if (event === "SIGNED_IN") {
+    const ok = await applyAuthGate();
+    if (ok) {
+      initApp();
+      renderAll();
+    }
+    return;
   }
+
+  // Ignorar TOKEN_REFRESHED y otros eventos para no rerenderizar toda la UI
 });
