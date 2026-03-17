@@ -517,7 +517,6 @@ function initTabs() {
     });
   });
 }
-
 /* -----------------------
    Cards
 ------------------------ */
@@ -547,18 +546,19 @@ function render() {
     `;
   }).join("");
 
-if (!grid.dataset.bound) {
-  grid.dataset.bound = "1";
+  if (!grid.dataset.bound) {
+    grid.dataset.bound = "1";
 
-  grid.addEventListener("click", (e) => {
-    const card = e.target.closest(".card");
-    if (!card) return;
+    grid.addEventListener("click", (e) => {
+      const card = e.target.closest(".card");
+      if (!card) return;
 
-    const id = card.dataset.id;
-    if (!id) return;
+      const id = card.dataset.id;
+      if (!id) return;
 
-    openDrawer(id);
-  });
+      openDrawer(id);
+    });
+  }
 }
 
 async function rerenderOpenDrawer() {
