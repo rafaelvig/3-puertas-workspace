@@ -762,3 +762,70 @@ body{
   border: 1px solid rgba(103, 232, 249, 0.28);
   color: #dffaff;
 }
+
+.workspace-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 520px;
+  gap:20px;
+  align-items:start;
+}
+
+.workspace-main{
+  min-width:0;
+}
+
+.detail-panel{
+  position:sticky;
+  top:20px;
+  min-height:70vh;
+}
+
+.detail-panel-inner{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:20px;
+  padding:18px;
+  min-height:70vh;
+  backdrop-filter:blur(10px);
+}
+
+.detail-empty{
+  opacity:.7;
+  padding:20px 10px;
+}
+
+.detail-head{
+  margin-bottom:16px;
+  padding-bottom:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.detail-title{
+  font-size:22px;
+  font-weight:700;
+  margin-bottom:6px;
+}
+
+.detail-meta{
+  font-size:13px;
+  opacity:.7;
+}
+
+.card.is-active{
+  outline:2px solid rgba(95,145,255,.9);
+  box-shadow:0 0 0 1px rgba(95,145,255,.35) inset;
+}
+
+@media (max-width: 1180px){
+  .workspace-layout{
+    grid-template-columns:1fr;
+  }
+
+  .detail-panel{
+    position:static;
+  }
+
+  .detail-panel-inner{
+    min-height:auto;
+  }
+}
