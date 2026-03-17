@@ -90,26 +90,18 @@
       <button class="tab" role="tab" aria-selected="false" data-tab="system">Sistema Comercial</button>
     </nav>
 
-    <section class="content">
-      <div class="grid" id="cardsGrid"></div>
-    </section>
-  </main>
+    <div class="workspace-layout">
+  <section class="workspace-main">
+    <div id="workspaceProgress"></div>
+    <div id="cardsGrid" class="cards-grid"></div>
+  </section>
 
-  <aside class="drawer" id="drawer" aria-hidden="true">
-    <div class="drawer-backdrop" id="drawerBackdrop"></div>
-
-    <div class="drawer-panel" role="dialog" aria-modal="true" aria-label="Detalle de bloque">
-      <div class="drawer-header">
-        <div>
-          <div class="drawer-title" id="drawerTitle">Título</div>
-          <div class="drawer-meta" id="drawerMeta">Empresa · Canal · Plano</div>
-        </div>
-        <button class="icon-btn" id="drawerClose" aria-label="Cerrar">✕</button>
-      </div>
-
-      <div class="drawer-body" id="drawerBody"></div>
+  <aside id="detailPanel" class="detail-panel">
+    <div id="detailPanelInner" class="detail-panel-inner">
+      <div class="detail-empty">Seleccioná un bloque para ver el detalle.</div>
     </div>
   </aside>
+</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
