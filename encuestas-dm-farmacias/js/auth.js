@@ -55,7 +55,15 @@ async function continueAfterLogin(){
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  $auth("#btnStart")?.addEventListener("click", () => showScreen("loginScreen"));
+ $auth("#btnStart")?.addEventListener("click", async () => {
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (session?.user) {
+    await continueAfterLogin();
+  } else {
+    showScreen("loginScreen");
+  }
+});
   $auth("#btnBackToWelcome")?.addEventListener("click", () => showScreen("welcomeScreen"));
   $auth("#btnBackToLogin")?.addEventListener("click", () => showScreen("loginScreen"));
 
@@ -118,10 +126,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     await continueAfterLogin();
   });
 
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    await continueAfterLogin();
-  } else {
-    showScreen("welcomeScreen");
-  }
+showScreen("welcomeScreen");
 });
