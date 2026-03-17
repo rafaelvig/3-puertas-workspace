@@ -374,7 +374,7 @@ const questions = [
 ];
 const FORM_SLUG = "dm-farmacias";
 const state = { i: 0, answers: {}, pharmacyName: "", respondentName: "" };
-
+window.state = state;
 const card = $("#card");
 const btnBack = $("#btnBack");
 const btnNext = $("#btnNext");
@@ -834,7 +834,7 @@ function showFinish(){
     <h2>Muchas gracias</h2>
     <p>Agradecemos su tiempo para completar esta encuesta.</p>
     <p>La información será analizada de forma agregada para comprender mejor la estructura económica del canal farmacéutico.</p>
-    <p>Su participación es muy valiosa para este estudio.</p>
+  <p>Su participación en el sorteo quedó registrada.</p>
   `;
 
   card.appendChild(box);
