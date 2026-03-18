@@ -254,7 +254,9 @@ async function saveLink(blockId, subtopic, url, title = "") {
   const cleanTitle = (title || "").trim();
 
   if (!cleanUrl) return null;
-
+  if (!/^https?:\/\//i.test(cleanUrl)) {
+    cleanUrl = "https://" + cleanUrl;
+  }
   const { data, error } = await sb
     .from("workspace_items")
     .insert({
