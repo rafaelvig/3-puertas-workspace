@@ -1138,7 +1138,7 @@ const delBtn = (type, index, entry = {}) =>
   const editBtn = (index) =>
     `<button data-note-edit="${index}"
       style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:rgba(255,255,255,.8);text-decoration:underline;">Editar</button>`;
-
+  
   /* =========================
      NOTAS
   ========================= */
