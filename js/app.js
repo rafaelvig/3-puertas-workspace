@@ -768,7 +768,7 @@ async function renderAccordion(block) {
 function wireAccordion(root) {
   if (!root) return;
 
-  // Headers: estos sí hay que volver a enlazarlos porque se recrean con innerHTML
+  // Rebind de headers porque se recrean dentro del innerHTML
   $$(".acc-header", root).forEach(btn => {
     if (btn.dataset.wiredHeader === "1") return;
 
@@ -780,8 +780,9 @@ function wireAccordion(root) {
     btn.dataset.wiredHeader = "1";
   });
 
-  // Delegados: estos deben registrarse una sola vez sobre drawerBody
+  // Delegación: se registra una sola vez sobre el contenedor persistente
   if (root.dataset.wiredDelegates === "1") return;
+  root.dataset.wiredDelegates = "1";
 
   root.addEventListener("click", (e) => {
     const actionBtn = e.target.closest("button[data-action]");
@@ -931,10 +932,10 @@ function wireAccordion(root) {
     const node = ensureSubNode(store, realBlockId, subKey);
 
     let entry = null;
-    if (type === "note") entry = node.notes[index];
-    if (type === "link") entry = node.links[index];
-    if (type === "file") entry = node.files[index];
-    if (type === "theory") entry = node.theory[index];
+    if (type === "note") entry = node.notes?.[index];
+    if (type === "link") entry = node.links?.[index];
+    if (type === "file") entry = node.files?.[index];
+    if (type === "theory") entry = node.theory?.[index];
 
     console.log("DELETE CLICK", { type, index, entry });
 
@@ -957,8 +958,6 @@ function wireAccordion(root) {
       alert("No se pudo eliminar el documento.");
     }
   });
-
-  input.click();
 }
 
 function onAddLink(blockId, subKey, accItem) {
