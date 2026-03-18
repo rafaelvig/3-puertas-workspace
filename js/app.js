@@ -32,11 +32,10 @@ function initLoginEmailSuggestion() {
   if (!input || !datalist) return;
 
   const lastEmail = loadLastLoginEmail();
+  if (!lastEmail) return;
 
-  if (lastEmail) {
-    input.value = lastEmail;
-    datalist.innerHTML = `<option value="${escapeAttr(lastEmail)}"></option>`;
-  }
+  input.value = lastEmail;
+  datalist.innerHTML = `<option value="${escapeAttr(lastEmail)}"></option>`;
 }
 
 /* -----------------------
@@ -61,8 +60,135 @@ async function logWorkspaceLogin(user) {
 }
 
 /* -----------------------
-   SUPABASE
+   Local state (solo UI)
 ------------------------ */
+function storageKey() {
+  return `3pws:${state.companyId}:${state.channelId}:${state.tab}`;
+}
+
+function loadStore() {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveStore(obj) {
+  localStorage.setItem(storageKey(), JSON.stringify(obj));
+}
+
+function ensureSubNode(store, blockId, subKey) {
+  store[blockId] = store[blockId] || {};
+  store[blockId][subKey] = store[blockId][subKey] || {};
+
+  const node = store[blockId][subKey];
+  node.done = typeof node.done === "boolean" ? node.done : false;
+  node.reviewedAt = node.reviewedAt || null;
+
+  return node;
+}
+
+function resetModuleDone(store, blockId, subKey) {
+  const node = ensureSubNode(store, blockId, subKey);
+  node.done = false;
+  node.reviewedAt = null;
+}
+
+/* -----------------------
+   Supabase content
+------------------------ */
+async function loadWorkspace(blockId, subtopic) {
+  const { data, error } = await sb
+    .from("workspace_items")
+    .select("*")
+    .eq("company_id", state.companyId)
+    .eq("channel_id", state.channelId)
+    .eq("block_id", blockId)
+    .eq("subtopic", subtopic)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("loadWorkspace error:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+async function saveNote(blockId, subtopic, text) {
+  const cleanText = (text || "").trim();
+  if (!cleanText) return null;
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .insert({
+      company_id: state.companyId,
+      channel_id: state.channelId,
+      block_id: blockId,
+      subtopic,
+      type: "note",
+      content: cleanText
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("saveNote error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+async function saveLink(blockId, subtopic, url) {
+  let cleanUrl = (url || "").trim();
+  if (!cleanUrl) return null;
+
+  if (!/^https?:\/\//i.test(cleanUrl)) {
+    cleanUrl = "https://" + cleanUrl;
+  }
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .insert({
+      company_id: state.companyId,
+      channel_id: state.channelId,
+      block_id: blockId,
+      subtopic,
+      type: "link",
+      content: cleanUrl
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("saveLink error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+async function updateWorkspaceNoteRemote(remoteId, text) {
+  const cleanText = (text || "").trim();
+  if (!remoteId) throw new Error("Falta remoteId");
+  if (!cleanText) throw new Error("Texto vacío");
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .update({ content: cleanText })
+    .eq("id", remoteId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("updateWorkspaceNoteRemote error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
 
 async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
   const user = await getSessionUser();
@@ -71,21 +197,10 @@ async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
   const safeName = file.name.replace(/[^\w.\-]+/g, "_");
   const path = `${state.companyId}/${state.channelId}/${blockId}/${subKey}/${Date.now()}_${safeName}`;
 
-  console.log("STEP 1 - preparando upload", {
-    userId: user.id,
-    bucket: "workspace-files",
-    path,
-    fileName: file.name,
-    size: file.size,
-    type: file.type
-  });
-
-  const { data: uploadData, error: uploadError } = await sb
+  const { error: uploadError } = await sb
     .storage
     .from("workspace-files")
     .upload(path, file, { upsert: false });
-
-  console.log("STEP 2 - resultado upload", { uploadData, uploadError });
 
   if (uploadError) throw uploadError;
 
@@ -93,8 +208,6 @@ async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
     .storage
     .from("workspace-files")
     .createSignedUrl(path, 60 * 60 * 24 * 7);
-
-  console.log("STEP 3 - resultado signed url", { signedData, signedError });
 
   if (signedError) throw signedError;
 
@@ -110,15 +223,11 @@ async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
     created_by: user.id
   };
 
-  console.log("STEP 4 - insert workspace_items", payload);
-
   const { data, error: insertError } = await sb
     .from("workspace_items")
     .insert(payload)
     .select()
     .single();
-
-  console.log("STEP 5 - resultado insert", { data, insertError });
 
   if (insertError) throw insertError;
 
@@ -152,23 +261,10 @@ async function deleteWorkspaceItemRemote(entry) {
     throw rowError;
   }
 }
-async function loadWorkspace(blockId, subtopic) {
-  const { data, error } = await sb
-    .from("workspace_items")
-    .select("*")
-    .eq("company_id", state.companyId)
-    .eq("channel_id", state.channelId)
-    .eq("block_id", blockId)
-    .eq("subtopic", subtopic)
-    .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("loadWorkspace error:", error);
-    return [];
-  }
-
-  return data || [];
-}
+/* -----------------------
+   Build view model
+------------------------ */
 function buildNodeFromWorkspaceItems(items, localNode = {}) {
   const node = {
     notes: [],
@@ -180,7 +276,7 @@ function buildNodeFromWorkspaceItems(items, localNode = {}) {
     reviewedAt: localNode?.reviewedAt || null
   };
 
-  (items || []).forEach(row => {
+  (items || []).forEach((row) => {
     if (row.type === "note") {
       node.notes.push({
         text: row.content || "",
@@ -193,7 +289,6 @@ function buildNodeFromWorkspaceItems(items, localNode = {}) {
     if (row.type === "link") {
       node.links.push({
         url: row.content || "",
-        title: row.title || "",
         ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
         remoteId: row.id
       });
@@ -224,124 +319,13 @@ function buildNodeFromWorkspaceItems(items, localNode = {}) {
 
   return node;
 }
-async function saveNote(blockId, subtopic, text) {
-  const cleanText = (text || "").trim();
-  if (!cleanText) return null;
-
-  const { data, error } = await sb
-    .from("workspace_items")
-    .insert({
-      company_id: state.companyId,
-      channel_id: state.channelId,
-      block_id: blockId,
-      subtopic,
-      type: "note",
-      content: cleanText
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("saveNote error:", error);
-    return null;
-  }
-
-  return data || null;
-}
-
-async function saveLink(blockId, subtopic, url, title = "") {
-  let cleanUrl = (url || "").trim();
-  const cleanTitle = (title || "").trim();
-
-  if (!cleanUrl) return null;
-  if (!/^https?:\/\//i.test(cleanUrl)) {
-    cleanUrl = "https://" + cleanUrl;
-  }
-  const { data, error } = await sb
-    .from("workspace_items")
-    .insert({
-      company_id: state.companyId,
-      channel_id: state.channelId,
-      block_id: blockId,
-      subtopic,
-      type: "link",
-      content: cleanUrl,
-      title: cleanTitle
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("saveLink error:", error);
-    throw error;
-  }
-
-  return data || null;
-}
-
-async function updateWorkspaceNoteRemote(remoteId, text) {
-  const cleanText = (text || "").trim();
-  if (!remoteId) throw new Error("Falta remoteId");
-  if (!cleanText) throw new Error("Texto vacío");
-
-  const { data, error } = await sb
-    .from("workspace_items")
-    .update({ content: cleanText })
-    .eq("id", remoteId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("updateWorkspaceNoteRemote error:", error);
-    throw error;
-  }
-
-  return data || null;
-}
-
-
-/* -----------------------
-   Storage (local)
------------------------- */
-function storageKey() {
-  return `3pws:${state.companyId}:${state.channelId}:${state.tab}`;
-}
-
-function loadStore() {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey()) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function saveStore(obj) {
-  localStorage.setItem(storageKey(), JSON.stringify(obj));
-}
-
-function ensureSubNode(store, blockId, subKey) {
-  store[blockId] = store[blockId] || {};
-  store[blockId][subKey] = store[blockId][subKey] || {};
-
-  const node = store[blockId][subKey];
-
-  node.notes = Array.isArray(node.notes) ? node.notes : [];
-  node.links = Array.isArray(node.links) ? node.links : [];
-  node.files = Array.isArray(node.files) ? node.files : [];
-  node.theory = Array.isArray(node.theory) ? node.theory : [];
-  node.surveys = Array.isArray(node.surveys) ? node.surveys : [];
-  node.done = typeof node.done === "boolean" ? node.done : false;
-  node.reviewedAt = node.reviewedAt || null;
-
-  return node;
-}
 
 function countItems(node) {
   return (
     (node?.notes?.length || 0) +
     (node?.links?.length || 0) +
     (node?.files?.length || 0) +
-       (node?.theory?.length || 0) +
+    (node?.theory?.length || 0) +
     (node?.surveys?.length || 0)
   );
 }
@@ -360,6 +344,9 @@ function getStatusLabel(status) {
   return "Pendiente";
 }
 
+/* -----------------------
+   Progress
+------------------------ */
 async function toggleModuleDone(blockId, subKey) {
   const store = loadStore();
   const node = ensureSubNode(store, blockId, subKey);
@@ -371,29 +358,31 @@ async function toggleModuleDone(blockId, subKey) {
   await renderAll();
 }
 
-function getAllModules() {
+async function getAllModules() {
   const modules = [];
   const store = loadStore();
   const blocks = window.WS_CONFIG?.planes?.[state.tab] || [];
 
-  blocks.forEach(block => {
-    (block.subs || []).forEach(sub => {
+  for (const block of blocks) {
+    for (const sub of (block.subs || [])) {
       const subKey = sub.id;
-      const node = ensureSubNode(store, block.id, subKey);
+      const localNode = ensureSubNode(store, block.id, subKey);
+      const remoteItems = await loadWorkspace(block.id, subKey);
+      const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
 
       modules.push({
         blockId: block.id,
         subKey,
         node
       });
-    });
-  });
+    }
+  }
 
   return modules;
 }
 
-function getWorkspaceProgress() {
-  const modules = getAllModules();
+async function getWorkspaceProgress() {
+  const modules = await getAllModules();
   const total = modules.length;
 
   const done = modules.filter(m => m.node.done).length;
@@ -419,10 +408,8 @@ function getBlockProgress(block) {
   }
 
   let completed = 0;
-
   subs.forEach(sub => {
-    const subKey = sub.id;
-    const node = ensureSubNode(store, block.id, subKey);
+    const node = ensureSubNode(store, block.id, sub.id);
     if (node?.done) completed++;
   });
 
@@ -433,11 +420,11 @@ function getBlockProgress(block) {
   };
 }
 
-function renderWorkspaceProgress() {
+async function renderWorkspaceProgress() {
   const el = $("#workspaceProgress");
   if (!el) return;
 
-  const p = getWorkspaceProgress();
+  const p = await getWorkspaceProgress();
 
   el.innerHTML = `
     <div class="wp-card">
@@ -487,22 +474,8 @@ function renderModuleControls(blockId, subKey, node) {
   `;
 }
 
-function resetModuleDone(store, blockId, subKey) {
-  const node = ensureSubNode(store, blockId, subKey);
-  node.done = false;
-  node.reviewedAt = null;
-}
-
-async function logoutWorkspace() {
-  const { error } = await sb.auth.signOut();
-  if (error) {
-    console.error("logout error:", error);
-    alert("No se pudo cerrar la sesión.");
-  }
-}
-
 /* -----------------------
-   Init: selectors + tabs
+   UI init
 ------------------------ */
 function initSelectors() {
   const companies = window.WS_CONFIG?.companies || [];
@@ -526,6 +499,7 @@ function initSelectors() {
   syncChannels();
   updateClientLogo();
 }
+
 function syncChannels() {
   const selChannel = $("#selChannel");
   if (!selChannel) return;
@@ -546,17 +520,15 @@ function syncChannels() {
   };
 }
 
-
 function updateClientLogo() {
   const logos = {
     monumento: "img/logo-monumento.svg"
   };
 
-  const el = document.getElementById("clientLogo");
+  const el = $("#clientLogo");
   if (!el) return;
 
   const src = logos[state.companyId];
-
   if (src) {
     el.src = src;
     el.style.display = "block";
@@ -564,6 +536,7 @@ function updateClientLogo() {
     el.style.display = "none";
   }
 }
+
 function initTabs() {
   const strategyItems = window.WS_CONFIG?.planes?.strategy || [];
   const systemItems = window.WS_CONFIG?.planes?.system || [];
@@ -578,7 +551,7 @@ function initTabs() {
   }
 
   $$(".tab").forEach(btn => {
-       btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async () => {
       const targetTab = btn.dataset.tab;
       const items = window.WS_CONFIG?.planes?.[targetTab] || [];
       if (items.length === 0) return;
@@ -588,7 +561,7 @@ function initTabs() {
         b.setAttribute("aria-selected", "false");
       });
 
-       btn.classList.add("is-active");
+      btn.classList.add("is-active");
       btn.setAttribute("aria-selected", "true");
       state.tab = targetTab;
 
@@ -597,6 +570,7 @@ function initTabs() {
     });
   });
 }
+
 /* -----------------------
    Cards
 ------------------------ */
@@ -642,17 +616,20 @@ function render() {
 
   highlightActiveCard();
 }
+
 async function rerenderOpenDrawer() {
   if (!state.openBlockId) return;
   await openDrawer(state.openBlockId);
 }
+
 async function renderAll() {
-  renderWorkspaceProgress();
+  await renderWorkspaceProgress();
   render();
   await rerenderOpenDrawer();
 }
+
 /* -----------------------
-   Drawer
+   Drawer / detail
 ------------------------ */
 async function openDrawer(blockId) {
   const items = window.WS_CONFIG?.planes?.[state.tab] || [];
@@ -663,7 +640,6 @@ async function openDrawer(blockId) {
 
   const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
-
   const panel = $("#detailPanelInner");
   if (!panel) return;
 
@@ -692,7 +668,6 @@ async function openDrawer(blockId) {
 
     wireAccordion(panel);
     highlightActiveCard();
-    panel.scrollTop = 0;
   } catch (err) {
     console.error("openDrawer error:", err);
     panel.innerHTML = `
@@ -706,6 +681,7 @@ async function openDrawer(blockId) {
     `;
   }
 }
+
 function closeDrawer() {
   state.openBlockId = null;
 
@@ -719,6 +695,7 @@ function closeDrawer() {
   const activeTab = $(".tab.is-active");
   if (activeTab) activeTab.focus();
 }
+
 function initDrawer() {
   if (drawerInitialized) return;
   drawerInitialized = true;
@@ -727,6 +704,7 @@ function initDrawer() {
     if (e.key === "Escape") closeDrawer();
   });
 }
+
 function highlightActiveCard() {
   $$(".card").forEach(card => {
     card.classList.toggle("is-active", card.dataset.id === state.openBlockId);
@@ -735,33 +713,26 @@ function highlightActiveCard() {
 
 function renderSurveyButton(block, subId) {
   const file = block?.surveys?.[subId];
-
-  if (file) {
+  if (!file) {
     return `
-      <a
-        class="btn btn-survey active"
-        href="${escapeAttr(file)}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <button class="btn btn-survey disabled" type="button" disabled>
         Encuesta
-      </a>
+      </button>
     `;
   }
 
   return `
-    <button
-      class="btn btn-survey disabled"
-      type="button"
-      disabled
+    <a
+      class="btn btn-survey active"
+      href="${escapeAttr(file)}"
+      target="_blank"
+      rel="noopener noreferrer"
     >
       Encuesta
-    </button>
+    </a>
   `;
 }
-/* -----------------------
-   Accordion render + wiring
------------------------- */
+
 async function renderAccordion(block) {
   const store = loadStore();
   const subs = block.subs || [];
@@ -833,6 +804,10 @@ async function renderAccordion(block) {
 
   return `<div class="accordion">${htmlParts.join("")}</div>`;
 }
+
+/* -----------------------
+   Wiring
+------------------------ */
 function wireAccordion(root) {
   if (!root) return;
 
@@ -898,16 +873,8 @@ function wireAccordion(root) {
       if (!text) return;
 
       saveNote(realBlockId, subKey, text)
-        .then((saved) => {
+        .then(async () => {
           const store = loadStore();
-          const node = ensureSubNode(store, realBlockId, subKey);
-
-          node.notes.unshift({
-            text,
-            ts: Date.now(),
-            remoteId: saved?.id || null
-          });
-
           resetModuleDone(store, realBlockId, subKey);
           saveStore(store);
 
@@ -915,7 +882,7 @@ function wireAccordion(root) {
           const box = $(".note-compose", item);
           if (box) box.style.display = "none";
 
-          refreshSubUI(realBlockId, subKey, item);
+          await refreshSubUI(realBlockId, subKey, item);
         })
         .catch(err => {
           console.error("note-save-new error:", err);
@@ -957,37 +924,37 @@ function wireAccordion(root) {
       return;
     }
 
-   const btnSave = e.target.closest("[data-note-save]");
-if (btnSave) {
-  const idx = Number(btnSave.getAttribute("data-note-save"));
-  const box = item.querySelector(`[data-note-editbox="${idx}"]`);
-  const ta = box?.querySelector("textarea");
-  const text = (ta?.value || "").trim();
-  if (!text) return;
+    const btnSave = e.target.closest("[data-note-save]");
+    if (btnSave) {
+      const idx = Number(btnSave.getAttribute("data-note-save"));
+      const box = item.querySelector(`[data-note-editbox="${idx}"]`);
+      const ta = box?.querySelector("textarea");
+      const text = (ta?.value || "").trim();
+      if (!text) return;
 
-  const view = item.querySelector(`[data-note-view="${idx}"]`);
-  const remoteId = view?.getAttribute("data-remote-id") || null;
+      const view = item.querySelector(`[data-note-view="${idx}"]`);
+      const remoteId = view?.getAttribute("data-remote-id") || null;
 
-  if (!remoteId) {
-    alert("Esta nota no tiene identificador remoto para actualizarse.");
-    return;
-  }
+      if (!remoteId) {
+        alert("Esta nota no tiene identificador remoto para actualizarse.");
+        return;
+      }
 
-  updateWorkspaceNoteRemote(remoteId, text)
-    .then(async () => {
-      const store = loadStore();
-      resetModuleDone(store, realBlockId, subKey);
-      saveStore(store);
+      updateWorkspaceNoteRemote(remoteId, text)
+        .then(async () => {
+          const store = loadStore();
+          resetModuleDone(store, realBlockId, subKey);
+          saveStore(store);
 
-      await refreshSubUI(realBlockId, subKey, item);
-    })
-    .catch(err => {
-      console.error("note update error:", err);
-      alert("No se pudo actualizar la nota.");
-    });
+          await refreshSubUI(realBlockId, subKey, item);
+        })
+        .catch(err => {
+          console.error("note update error:", err);
+          alert("No se pudo actualizar la nota.");
+        });
 
-  return;
-}
+      return;
+    }
   });
 
   root.addEventListener("click", async (e) => {
@@ -1006,8 +973,9 @@ if (btnSave) {
     const type = delBtn.getAttribute("data-del");
     const index = Number(delBtn.getAttribute("data-index"));
 
-    const store = loadStore();
-    const node = ensureSubNode(store, realBlockId, subKey);
+    const remoteItems = await loadWorkspace(realBlockId, subKey);
+    const localNode = ensureSubNode(loadStore(), realBlockId, subKey);
+    const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
 
     let entry = null;
     if (type === "note") entry = node.notes?.[index];
@@ -1020,13 +988,10 @@ if (btnSave) {
         remoteId: delBtn.getAttribute("data-remote-id") || null,
         path: delBtn.getAttribute("data-path") || "",
         name: delBtn.getAttribute("data-name") || "",
-        title: delBtn.getAttribute("data-name") || "",
         url: delBtn.getAttribute("data-name") || "",
         text: delBtn.getAttribute("data-name") || ""
       };
     }
-
-    console.log("DELETE CLICK", { type, index, entry });
 
     if (!entry?.remoteId) {
       console.warn("DELETE WITHOUT REMOTE ID", { type, index, entry });
@@ -1036,6 +1001,11 @@ if (btnSave) {
 
     try {
       await deleteWorkspaceItemRemote(entry);
+
+      const store = loadStore();
+      resetModuleDone(store, realBlockId, subKey);
+      saveStore(store);
+
       await refreshSubUI(realBlockId, subKey, item);
     } catch (err) {
       console.error("delete item error:", err);
@@ -1043,14 +1013,16 @@ if (btnSave) {
     }
   });
 }
+
+/* -----------------------
+   Actions
+------------------------ */
 async function onAddLink(blockId, subKey, accItem) {
   const url = prompt("Pegá la URL del link:");
   if (!url || !url.trim()) return;
 
-  const title = prompt("Título del link (opcional):") || "";
-
   try {
-    await saveLink(blockId, subKey, url, title);
+    await saveLink(blockId, subKey, url);
 
     const store = loadStore();
     resetModuleDone(store, blockId, subKey);
@@ -1073,39 +1045,44 @@ function onUpload(blockId, subKey, accItem) {
     const f = input.files?.[0];
     if (!f) return;
 
-    console.log("Archivo seleccionado:", {
-      name: f.name,
-      type: f.type,
-      size: f.size,
-      blockId,
-      subKey
-    });
-
     try {
-      const saved = await uploadFileToStorage(f, blockId, subKey);
-      console.log("Archivo guardado en Supabase:", saved);
+      await uploadFileToStorage(f, blockId, subKey, "file");
 
       const store = loadStore();
-      const node = ensureSubNode(store, blockId, subKey);
-
-      node.files.unshift({
-        name: f.name,
-        size: f.size,
-        ts: Date.now(),
-        remoteId: saved?.id || null,
-        url: saved?.file_url || "",
-        path: saved?.file_path || ""
-      });
-
       resetModuleDone(store, blockId, subKey);
       saveStore(store);
 
-      console.log("STEP 6 - archivo agregado al store local", node.files[0]);
-
-      refreshSubUI(blockId, subKey, accItem);
+      await refreshSubUI(blockId, subKey, accItem);
     } catch (err) {
       console.error("UPLOAD ERROR FULL:", err);
       alert(err?.message || JSON.stringify(err) || "No se pudo subir el archivo.");
+    }
+  };
+
+  input.click();
+}
+
+function onUploadTheory(blockId, subKey, accItem) {
+  const input = $(".file-input", accItem);
+  if (!input) return;
+
+  input.value = "";
+
+  input.onchange = async () => {
+    const f = input.files?.[0];
+    if (!f) return;
+
+    try {
+      await uploadFileToStorage(f, blockId, subKey, "theory");
+
+      const store = loadStore();
+      resetModuleDone(store, blockId, subKey);
+      saveStore(store);
+
+      await refreshSubUI(blockId, subKey, accItem);
+    } catch (err) {
+      console.error("UPLOAD THEORY ERROR FULL:", err);
+      alert(err?.message || JSON.stringify(err) || "No se pudo subir el material teórico.");
     }
   };
 
@@ -1135,10 +1112,14 @@ async function refreshSubUI(blockId, subKey, accItem) {
     controlsHost.insertAdjacentHTML("afterbegin", renderModuleControls(blockId, subKey, node));
   }
 
-  renderWorkspaceProgress();
+  await renderWorkspaceProgress();
   render();
   await rerenderOpenDrawer();
 }
+
+/* -----------------------
+   Render mini list
+------------------------ */
 function renderMiniList(node) {
   const notes = node?.notes || [];
   const links = node?.links || [];
@@ -1158,7 +1139,7 @@ function renderMiniList(node) {
       data-index="${index}"
       data-remote-id="${escapeAttr(entry.remoteId || "")}"
       data-path="${escapeAttr(entry.path || "")}"
-      data-name="${escapeAttr(entry.name || entry.title || entry.url || entry.text || "")}"
+      data-name="${escapeAttr(entry.name || entry.url || entry.text || "")}"
       style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:#ff6b6b;"
     >✕</button>`;
 
@@ -1166,9 +1147,6 @@ function renderMiniList(node) {
     `<button data-note-edit="${index}"
       style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:rgba(255,255,255,.8);text-decoration:underline;">Editar</button>`;
 
-  /* =========================
-     NOTAS
-  ========================= */
   if (notes.length) {
     parts.push(`<div class="mini-section-title"><span>Notas</span></div>`);
 
@@ -1200,23 +1178,17 @@ function renderMiniList(node) {
     parts.push(`<ul class="mini-list">${li}</ul>`);
   }
 
-  /* =========================
-     LINKS
-  ========================= */
   if (links.length) {
     parts.push(`<div class="mini-section-title"><span>Links</span></div>`);
 
     const li = links.map((l, i) => {
-      const label = l.title
-        ? escapeHtml(trunc(l.title, 60))
-        : escapeHtml(trunc(l.url, 60));
-
       const href = escapeAttr(l.url);
+      const label = escapeHtml(trunc(l.url, 60));
 
       return [
         `<li>`,
-    `<a href="${href}" target="_blank" rel="noopener noreferrer"
-  style="text-decoration:underline;opacity:.9;color:#ffffff;">`,
+        `<a href="${href}" target="_blank" rel="noopener noreferrer"
+          style="text-decoration:underline;opacity:.9;color:#ffffff;">`,
         label,
         `</a>`,
         delBtn("link", i, l),
@@ -1227,9 +1199,6 @@ function renderMiniList(node) {
     parts.push(`<ul class="mini-list">${li}</ul>`);
   }
 
-  /* =========================
-     ARCHIVOS
-  ========================= */
   if (files.length) {
     parts.push(`<div class="mini-section-title"><span>Archivos</span></div>`);
 
@@ -1251,9 +1220,6 @@ function renderMiniList(node) {
     parts.push(`<ul class="mini-list files">${li}</ul>`);
   }
 
-  /* =========================
-     MATERIAL TEORICO
-  ========================= */
   if (theory.length) {
     parts.push(`<div class="mini-section-title"><span>Material teórico</span></div>`);
 
@@ -1278,8 +1244,9 @@ function renderMiniList(node) {
 
   return parts.join("");
 }
+
 /* -----------------------
-   Utils (safe)
+   Utils
 ------------------------ */
 function trunc(s, n) {
   if (!s) return "";
@@ -1366,8 +1333,6 @@ async function isAuthorizedUser(email) {
     .eq("is_active", true)
     .maybeSingle();
 
-  console.log("isAuthorizedUser:", { normalizedEmail, data, error });
-
   if (error) {
     console.error("workspace_members auth error:", error);
     return false;
@@ -1419,6 +1384,14 @@ async function applyAuthGate() {
   }
 }
 
+async function logoutWorkspace() {
+  const { error } = await sb.auth.signOut();
+  if (error) {
+    console.error("logout error:", error);
+    alert("No se pudo cerrar la sesión.");
+  }
+}
+
 /* -----------------------
    App init
 ------------------------ */
@@ -1451,8 +1424,6 @@ async function boot() {
 boot();
 
 sb.auth.onAuthStateChange(async (event) => {
-  console.log("auth state change:", event);
-
   if (event === "SIGNED_OUT") {
     loginLoggedForSession = false;
     await applyAuthGate();
@@ -1465,8 +1436,5 @@ sb.auth.onAuthStateChange(async (event) => {
       initApp();
       await renderAll();
     }
-    return;
   }
-
-  // Ignorar TOKEN_REFRESHED y otros eventos
 });
