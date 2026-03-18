@@ -430,9 +430,7 @@ function getAllModules() {
       modules.push({
         blockId: block.id,
         subKey: sub.id,
-        node: {
-          done: record?.status === "done"
-        }
+        status: record?.status || "empty"
       });
     });
   });
@@ -444,9 +442,9 @@ function getWorkspaceProgress() {
   const modules = getAllModules();
   const total = modules.length;
 
-  const done = modules.filter(m => m.node.done).length;
-  const working = modules.filter(m => !m.node.done).length;
-  const empty = total - done - working;
+  const done = modules.filter(m => m.status === "done").length;
+  const working = modules.filter(m => m.status === "working").length;
+  const empty = modules.filter(m => m.status === "empty").length;
 
   const percent = total ? Math.round((done / total) * 100) : 0;
 
@@ -682,6 +680,7 @@ async function rerenderOpenDrawer() {
 }
 
 async function renderAll() {
+  await refreshModuleStatusMap();
   render();
   rerenderOpenDrawer().catch(err => console.error("rerenderOpenDrawer error:", err));
   renderWorkspaceProgress().catch(err => console.error("renderWorkspaceProgress error:", err));
@@ -1060,11 +1059,8 @@ await refreshSubUI(realBlockId, subKey, item);
     try {
       await deleteWorkspaceItemRemote(entry);
 
-      const store = loadStore();
-      resetModuleDone(store, realBlockId, subKey);
-      saveStore(store);
-
-      await refreshSubUI(realBlockId, subKey, item);
+   await reopenModuleStatus(realBlockId, subKey);
+await refreshSubUI(realBlockId, subKey, item);
     } catch (err) {
       console.error("delete item error:", err);
       alert("No se pudo eliminar el documento.");
@@ -1081,9 +1077,8 @@ async function onAddLink(blockId, subKey, accItem) {
 
   try {
     await saveLink(blockId, subKey, url);
-
-    await reopenModuleStatus(realBlockId, subKey);
-await refreshSubUI(realBlockId, subKey, item);
+    await reopenModuleStatus(blockId, subKey);
+    await refreshSubUI(blockId, subKey, accItem);
   } catch (err) {
     console.error("onAddLink error:", err);
     alert("No se pudo guardar el link.");
@@ -1126,9 +1121,8 @@ function onUploadTheory(blockId, subKey, accItem) {
 
     try {
       await uploadFileToStorage(f, blockId, subKey, "theory");
-
- await reopenModuleStatus(realBlockId, subKey);
-await refreshSubUI(realBlockId, subKey, item);
+      await reopenModuleStatus(blockId, subKey);
+      await refreshSubUI(blockId, subKey, accItem);
     } catch (err) {
       console.error("UPLOAD THEORY ERROR FULL:", err);
       alert(err?.message || JSON.stringify(err) || "No se pudo subir el material teórico.");
