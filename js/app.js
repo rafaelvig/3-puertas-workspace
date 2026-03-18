@@ -623,9 +623,9 @@ async function rerenderOpenDrawer() {
 }
 
 async function renderAll() {
-  await renderWorkspaceProgress();
   render();
-  await rerenderOpenDrawer();
+  rerenderOpenDrawer().catch(err => console.error("rerenderOpenDrawer error:", err));
+  renderWorkspaceProgress().catch(err => console.error("renderWorkspaceProgress error:", err));
 }
 
 /* -----------------------
