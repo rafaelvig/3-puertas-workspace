@@ -780,7 +780,6 @@ async function renderAccordion(block) {
 function wireAccordion(root) {
   if (!root) return;
 
-  // Rebind de headers porque se recrean dentro del innerHTML
   $$(".acc-header", root).forEach(btn => {
     if (btn.dataset.wiredHeader === "1") return;
 
@@ -792,7 +791,6 @@ function wireAccordion(root) {
     btn.dataset.wiredHeader = "1";
   });
 
-  // Delegación: se registra una sola vez sobre el contenedor persistente
   if (root.dataset.wiredDelegates === "1") return;
   root.dataset.wiredDelegates = "1";
 
@@ -925,57 +923,58 @@ function wireAccordion(root) {
   });
 
   root.addEventListener("click", async (e) => {
-  const delBtn = e.target.closest("[data-del]");
-  if (!delBtn) return;
+    const delBtn = e.target.closest("[data-del]");
+    if (!delBtn) return;
 
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
 
-  const item = delBtn.closest(".acc-item");
-  const subKey = item?.getAttribute("data-sub");
-  const realBlockId = item?.getAttribute("data-block");
-  if (!item || !subKey || !realBlockId) return;
+    const item = delBtn.closest(".acc-item");
+    const subKey = item?.getAttribute("data-sub");
+    const realBlockId = item?.getAttribute("data-block");
+    if (!item || !subKey || !realBlockId) return;
 
-  const type = delBtn.getAttribute("data-del");
-  const index = Number(delBtn.getAttribute("data-index"));
+    const type = delBtn.getAttribute("data-del");
+    const index = Number(delBtn.getAttribute("data-index"));
 
-  const store = loadStore();
-  const node = ensureSubNode(store, realBlockId, subKey);
+    const store = loadStore();
+    const node = ensureSubNode(store, realBlockId, subKey);
 
-  let entry = null;
-  if (type === "note") entry = node.notes?.[index];
-  if (type === "link") entry = node.links?.[index];
-  if (type === "file") entry = node.files?.[index];
-  if (type === "theory") entry = node.theory?.[index];
+    let entry = null;
+    if (type === "note") entry = node.notes?.[index];
+    if (type === "link") entry = node.links?.[index];
+    if (type === "file") entry = node.files?.[index];
+    if (type === "theory") entry = node.theory?.[index];
 
-  if (!entry) {
-    entry = {
-      remoteId: delBtn.getAttribute("data-remote-id") || null,
-      path: delBtn.getAttribute("data-path") || "",
-      name: delBtn.getAttribute("data-name") || "",
-      title: delBtn.getAttribute("data-name") || "",
-      url: delBtn.getAttribute("data-name") || "",
-      text: delBtn.getAttribute("data-name") || ""
-    };
-  }
+    if (!entry) {
+      entry = {
+        remoteId: delBtn.getAttribute("data-remote-id") || null,
+        path: delBtn.getAttribute("data-path") || "",
+        name: delBtn.getAttribute("data-name") || "",
+        title: delBtn.getAttribute("data-name") || "",
+        url: delBtn.getAttribute("data-name") || "",
+        text: delBtn.getAttribute("data-name") || ""
+      };
+    }
 
-  console.log("DELETE CLICK", { type, index, entry });
+    console.log("DELETE CLICK", { type, index, entry });
 
-  if (!entry?.remoteId) {
-    console.warn("DELETE WITHOUT REMOTE ID", { type, index, entry });
-    alert("Este elemento no se puede eliminar porque no tiene identificador válido.");
-    return;
-  }
+    if (!entry?.remoteId) {
+      console.warn("DELETE WITHOUT REMOTE ID", { type, index, entry });
+      alert("Este elemento no se puede eliminar porque no tiene identificador válido.");
+      return;
+    }
 
-  try {
-    await deleteWorkspaceItemRemote(entry);
-    await refreshSubUI(realBlockId, subKey, item);
-  } catch (err) {
-    console.error("delete item error:", err);
-    alert("No se pudo eliminar el documento.");
-  }
-});
+    try {
+      await deleteWorkspaceItemRemote(entry);
+      await refreshSubUI(realBlockId, subKey, item);
+    } catch (err) {
+      console.error("delete item error:", err);
+      alert("No se pudo eliminar el documento.");
+    }
+  });
+}
 function onAddLink(blockId, subKey, accItem) {
   const url = prompt("Pegá la URL del link:");
   if (!url || !url.trim()) return;
