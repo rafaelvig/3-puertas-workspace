@@ -126,7 +126,9 @@ async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
 }
 
 async function deleteWorkspaceItemRemote(entry) {
-  if (!entry?.remoteId) return;
+  if (!entry?.remoteId) {
+    throw new Error("Falta remoteId en el item a eliminar.");
+  }
 
   if (entry.path) {
     const { error: storageError } = await sb
@@ -136,6 +138,7 @@ async function deleteWorkspaceItemRemote(entry) {
 
     if (storageError) {
       console.error("storage remove error:", storageError);
+      throw storageError;
     }
   }
 
