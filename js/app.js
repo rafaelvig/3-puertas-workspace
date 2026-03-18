@@ -250,7 +250,7 @@ async function saveNote(blockId, subtopic, text) {
 }
 
 async function saveLink(blockId, subtopic, url, title = "") {
-  const cleanUrl = (url || "").trim();
+  let cleanUrl = (url || "").trim();
   const cleanTitle = (title || "").trim();
 
   if (!cleanUrl) return null;
