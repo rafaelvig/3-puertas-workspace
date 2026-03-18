@@ -40,7 +40,7 @@ body{
 ========================= */
 .topbar{
   position:sticky;
-  top:0;
+  top:110px;
   z-index:20;
   display:flex;
   align-items:center;
@@ -722,10 +722,14 @@ body{
 .detail-panel{
   min-width:0;
   align-self:start;
+  position:sticky;
+  top:110px;
 }
 
 .detail-panel-inner{
-  margin-top:70px;
+  margin-top:0;
+  max-height:calc(100vh - 130px);
+  overflow:auto;
 }
 
 .detail-empty{
