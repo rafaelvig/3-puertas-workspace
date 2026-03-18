@@ -273,6 +273,28 @@ async function saveLink(blockId, subtopic, url, title = "") {
 
   return data || null;
 }
+
+async function updateWorkspaceNoteRemote(remoteId, text) {
+  const cleanText = (text || "").trim();
+  if (!remoteId) throw new Error("Falta remoteId");
+  if (!cleanText) throw new Error("Texto vacío");
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .update({ content: cleanText })
+    .eq("id", remoteId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("updateWorkspaceNoteRemote error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+
 /* -----------------------
    Storage (local)
 ------------------------ */
@@ -1124,8 +1146,8 @@ function renderMiniList(node) {
 
   const parts = [];
 
-const delBtn = (type, index, entry = {}) =>
-  `<button
+  const delBtn = (type, index, entry = {}) =>
+    `<button
       type="button"
       data-del="${type}"
       data-index="${index}"
@@ -1138,11 +1160,10 @@ const delBtn = (type, index, entry = {}) =>
   const editBtn = (index) =>
     `<button data-note-edit="${index}"
       style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:rgba(255,255,255,.8);text-decoration:underline;">Editar</button>`;
-  
+
   /* =========================
      NOTAS
   ========================= */
-
   if (notes.length) {
     parts.push(`<div class="mini-section-title"><span>Notas</span></div>`);
 
@@ -1151,31 +1172,32 @@ const delBtn = (type, index, entry = {}) =>
       const textEdit = escapeHtml(n.text);
 
       return [
-  `<li style="margin-bottom:8px;">`,
-  `<div class="note-view" data-note-view="${i}" data-remote-id="${escapeAttr(n.remoteId || "")}">`,
-  textView,
-  editBtn(i),
-  delBtn("note", i, n),
-  `</div>`,
-  `<div class="note-edit" data-note-editbox="${i}" style="display:none;margin-top:8px;">`,
-  `<textarea rows="4"
-    style="width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:inherit;padding:10px;resize:vertical;">`,
-  textEdit,
-  `</textarea>`,
-  `<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">`,
-  `<button class="btn" type="button" data-note-save="${i}">Guardar</button>`,
-  `<button class="btn" type="button" data-note-cancel="${i}">Cancelar</button>`,
-  `</div>`,
-  `</div>`,
-  `</li>`
-].join("");
+        `<li style="margin-bottom:8px;">`,
+        `<div class="note-view" data-note-view="${i}" data-remote-id="${escapeAttr(n.remoteId || "")}">`,
+        textView,
+        editBtn(i),
+        delBtn("note", i, n),
+        `</div>`,
+        `<div class="note-edit" data-note-editbox="${i}" style="display:none;margin-top:8px;">`,
+        `<textarea rows="4"
+          style="width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:inherit;padding:10px;resize:vertical;">`,
+        textEdit,
+        `</textarea>`,
+        `<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">`,
+        `<button class="btn" type="button" data-note-save="${i}">Guardar</button>`,
+        `<button class="btn" type="button" data-note-cancel="${i}">Cancelar</button>`,
+        `</div>`,
+        `</div>`,
+        `</li>`
+      ].join("");
+    }).join("");
+
     parts.push(`<ul class="mini-list">${li}</ul>`);
-  
+  }
 
   /* =========================
      LINKS
   ========================= */
-
   if (links.length) {
     parts.push(`<div class="mini-section-title"><span>Links</span></div>`);
 
@@ -1203,7 +1225,6 @@ const delBtn = (type, index, entry = {}) =>
   /* =========================
      ARCHIVOS
   ========================= */
-
   if (files.length) {
     parts.push(`<div class="mini-section-title"><span>Archivos</span></div>`);
 
@@ -1217,7 +1238,7 @@ const delBtn = (type, index, entry = {}) =>
           ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
               style="text-decoration:underline;opacity:.9;">${label}</a>`
           : label,
-        delBtn("file", i,f),
+        delBtn("file", i, f),
         `</li>`
       ].join("");
     }).join("");
@@ -1228,7 +1249,6 @@ const delBtn = (type, index, entry = {}) =>
   /* =========================
      MATERIAL TEORICO
   ========================= */
-
   if (theory.length) {
     parts.push(`<div class="mini-section-title"><span>Material teórico</span></div>`);
 
@@ -1252,9 +1272,7 @@ const delBtn = (type, index, entry = {}) =>
   }
 
   return parts.join("");
-
-
-
+}
 /* -----------------------
    Utils (safe)
 ------------------------ */
