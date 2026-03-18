@@ -168,10 +168,10 @@ async function loadWorkspace(blockId, subtopic) {
 }
 function buildNodeFromWorkspaceItems(items, localNode = {}) {
   const node = {
-    notes: Array.isArray(localNode?.notes) ? [...localNode.notes] : [],
-    links: Array.isArray(localNode?.links) ? [...localNode.links] : [],
-    files: Array.isArray(localNode?.files) ? [...localNode.files] : [],
-    theory: Array.isArray(localNode?.theory) ? [...localNode.theory] : [],
+    notes: [],
+    links: [],
+    files: [],
+    theory: [],
     surveys: Array.isArray(localNode?.surveys) ? localNode.surveys : [],
     done: typeof localNode?.done === "boolean" ? localNode.done : false,
     reviewedAt: localNode?.reviewedAt || null
@@ -622,22 +622,34 @@ async function openDrawer(blockId) {
     <div class="mini">Cargando...</div>
   `;
 
-  const accordionHtml = await renderAccordion(block);
+  try {
+    const accordionHtml = await renderAccordion(block);
 
-  panel.innerHTML = `
-    <div class="detail-head">
-      <div class="detail-title">${escapeHtml(block.title)}</div>
-      <div class="detail-meta">
-        ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+    panel.innerHTML = `
+      <div class="detail-head">
+        <div class="detail-title">${escapeHtml(block.title)}</div>
+        <div class="detail-meta">
+          ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+        </div>
       </div>
-    </div>
-    ${accordionHtml}
-  `;
+      ${accordionHtml}
+    `;
 
-  wireAccordion(panel);
-  highlightActiveCard();
+    wireAccordion(panel);
+    highlightActiveCard();
+  } catch (err) {
+    console.error("openDrawer error:", err);
+    panel.innerHTML = `
+      <div class="detail-head">
+        <div class="detail-title">${escapeHtml(block.title)}</div>
+        <div class="detail-meta">
+          ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+        </div>
+      </div>
+      <div class="mini">Error al cargar este bloque.</div>
+    `;
+  }
 }
-
 function closeDrawer() {
   state.openBlockId = null;
 
@@ -913,72 +925,57 @@ function wireAccordion(root) {
   });
 
   root.addEventListener("click", async (e) => {
-    const delBtn = e.target.closest("[data-del]");
-    if (!delBtn) return;
+  const delBtn = e.target.closest("[data-del]");
+  if (!delBtn) return;
 
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
 
-    const item = delBtn.closest(".acc-item");
-    const subKey = item?.getAttribute("data-sub");
-    const realBlockId = item?.getAttribute("data-block");
-    if (!item || !subKey || !realBlockId) return;
+  const item = delBtn.closest(".acc-item");
+  const subKey = item?.getAttribute("data-sub");
+  const realBlockId = item?.getAttribute("data-block");
+  if (!item || !subKey || !realBlockId) return;
 
-    const type = delBtn.getAttribute("data-del");
-    const index = Number(delBtn.getAttribute("data-index"));
+  const type = delBtn.getAttribute("data-del");
+  const index = Number(delBtn.getAttribute("data-index"));
 
-    const store = loadStore();
-    const node = ensureSubNode(store, realBlockId, subKey);
+  const store = loadStore();
+  const node = ensureSubNode(store, realBlockId, subKey);
 
-   let entry = null;
-if (type === "note") entry = node.notes?.[index];
-if (type === "link") entry = node.links?.[index];
-if (type === "file") entry = node.files?.[index];
-if (type === "theory") entry = node.theory?.[index];
+  let entry = null;
+  if (type === "note") entry = node.notes?.[index];
+  if (type === "link") entry = node.links?.[index];
+  if (type === "file") entry = node.files?.[index];
+  if (type === "theory") entry = node.theory?.[index];
 
-if (!entry) {
-  entry = {
-    remoteId: delBtn.getAttribute("data-remote-id") || null,
-    path: delBtn.getAttribute("data-path") || "",
-    name: delBtn.getAttribute("data-name") || "",
-    title: delBtn.getAttribute("data-name") || "",
-    url: delBtn.getAttribute("data-name") || "",
-    text: delBtn.getAttribute("data-name") || ""
-  };
-}
+  if (!entry) {
+    entry = {
+      remoteId: delBtn.getAttribute("data-remote-id") || null,
+      path: delBtn.getAttribute("data-path") || "",
+      name: delBtn.getAttribute("data-name") || "",
+      title: delBtn.getAttribute("data-name") || "",
+      url: delBtn.getAttribute("data-name") || "",
+      text: delBtn.getAttribute("data-name") || ""
+    };
+  }
 
-console.log("DELETE CLICK", { type, index, entry });
+  console.log("DELETE CLICK", { type, index, entry });
 
-if (!entry || (!entry.remoteId && !entry.path)) {
-  console.warn("DELETE WITHOUT IDENTIFIER", { type, index, entry });
-  alert("Este elemento viejo no tiene identificador suficiente para borrarse desde la interfaz.");
-  return;
-}
+  if (!entry?.remoteId) {
+    console.warn("DELETE WITHOUT REMOTE ID", { type, index, entry });
+    alert("Este elemento no se puede eliminar porque no tiene identificador válido.");
+    return;
+  }
 
-    console.log("DELETE CLICK", { type, index, entry });
-
-    if (!entry) return;
-
-    try {
-      await deleteWorkspaceItemRemote(entry);
-
-      if (type === "note") node.notes.splice(index, 1);
-      if (type === "link") node.links.splice(index, 1);
-      if (type === "file") node.files.splice(index, 1);
-      if (type === "theory") node.theory.splice(index, 1);
-
-      resetModuleDone(store, realBlockId, subKey);
-      saveStore(store);
-
-      await refreshSubUI(realBlockId, subKey, item);
-    } catch (err) {
-      console.error("delete item error:", err);
-      alert("No se pudo eliminar el documento.");
-    }
-  });
-}
-
+  try {
+    await deleteWorkspaceItemRemote(entry);
+    await refreshSubUI(realBlockId, subKey, item);
+  } catch (err) {
+    console.error("delete item error:", err);
+    alert("No se pudo eliminar el documento.");
+  }
+});
 function onAddLink(blockId, subKey, accItem) {
   const url = prompt("Pegá la URL del link:");
   if (!url || !url.trim()) return;
@@ -1208,7 +1205,7 @@ const delBtn = (type, index, entry = {}) =>
           ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
               style="text-decoration:underline;opacity:.95;">${label}</a>`
           : label,
-        delBtn("theory", i, t),
+        delBtn("theory", i, f),
         `</li>`
       ].join("");
     }).join("");
