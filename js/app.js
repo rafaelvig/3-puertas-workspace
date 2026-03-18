@@ -5,7 +5,8 @@ const state = {
   tab: "strategy",
   companyId: null,
   channelId: null,
-  openBlockId: null
+  openBlockId: null,
+  moduleStatusMap: {}
 };
 
 let sendingMagicLink = false;
@@ -190,6 +191,69 @@ async function updateWorkspaceNoteRemote(remoteId, text) {
   return data || null;
 }
 
+function moduleStatusKey(blockId, subKey) {
+  return `${state.companyId}::${state.channelId}::${blockId}::${subKey}`;
+}
+
+async function refreshModuleStatusMap() {
+  const { data, error } = await sb
+    .from("workspace_module_status")
+    .select("block_id, subtopic, status, reviewed_at, reviewed_by")
+    .eq("company_id", state.companyId)
+    .eq("channel_id", state.channelId);
+
+  if (error) {
+    console.error("refreshModuleStatusMap error:", error);
+    state.moduleStatusMap = {};
+    return {};
+  }
+
+  const map = {};
+  (data || []).forEach(row => {
+    map[moduleStatusKey(row.block_id, row.subtopic)] = row;
+  });
+
+  state.moduleStatusMap = map;
+  return map;
+}
+
+function getModuleStatusRecord(blockId, subKey) {
+  return state.moduleStatusMap[moduleStatusKey(blockId, subKey)] || null;
+}
+
+async function setModuleStatusRemote(blockId, subKey, status) {
+  const user = await getSessionUser();
+
+  const payload = {
+    company_id: state.companyId,
+    channel_id: state.channelId,
+    block_id: blockId,
+    subtopic: subKey,
+    status,
+    reviewed_at: status === "done" ? new Date().toISOString() : null,
+    reviewed_by: status === "done" ? user?.id || null : null,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } = await sb
+    .from("workspace_module_status")
+    .upsert(payload, {
+      onConflict: "company_id,channel_id,block_id,subtopic"
+    });
+
+  if (error) {
+    console.error("setModuleStatusRemote error:", error);
+    throw error;
+  }
+
+  await refreshModuleStatusMap();
+}
+
+async function reopenModuleStatus(blockId, subKey) {
+  await setModuleStatusRemote(blockId, subKey, "working");
+}
+
+
 async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
   const user = await getSessionUser();
   if (!user?.id) throw new Error("No hay usuario autenticado");
@@ -348,30 +412,27 @@ function getStatusLabel(status) {
    Progress
 ------------------------ */
 async function toggleModuleDone(blockId, subKey) {
-  const store = loadStore();
-  const node = ensureSubNode(store, blockId, subKey);
+  const current = getModuleStatusRecord(blockId, subKey);
+  const nextStatus = current?.status === "done" ? "working" : "done";
 
-  node.done = !node.done;
-  node.reviewedAt = node.done ? new Date().toISOString() : null;
-
-  saveStore(store);
+  await setModuleStatusRemote(blockId, subKey, nextStatus);
   await renderAll();
 }
 
 function getAllModules() {
   const modules = [];
-  const store = loadStore();
   const blocks = window.WS_CONFIG?.planes?.[state.tab] || [];
 
   blocks.forEach(block => {
     (block.subs || []).forEach(sub => {
-      const subKey = sub.id;
-      const node = ensureSubNode(store, block.id, subKey);
+      const record = getModuleStatusRecord(block.id, sub.id);
 
       modules.push({
         blockId: block.id,
-        subKey,
-        node
+        subKey: sub.id,
+        node: {
+          done: record?.status === "done"
+        }
       });
     });
   });
@@ -384,7 +445,7 @@ function getWorkspaceProgress() {
   const total = modules.length;
 
   const done = modules.filter(m => m.node.done).length;
-  const working = modules.filter(m => getSubStatus(m.node) === "working").length;
+  const working = modules.filter(m => !m.node.done).length;
   const empty = total - done - working;
 
   const percent = total ? Math.round((done / total) * 100) : 0;
@@ -397,7 +458,6 @@ function getWorkspaceProgress() {
 }
 
 function getBlockProgress(block) {
-  const store = loadStore();
   const subs = block?.subs || [];
   const total = subs.length;
 
@@ -406,9 +466,10 @@ function getBlockProgress(block) {
   }
 
   let completed = 0;
+
   subs.forEach(sub => {
-    const node = ensureSubNode(store, block.id, sub.id);
-    if (node?.done) completed++;
+    const record = getModuleStatusRecord(block.id, sub.id);
+    if (record?.status === "done") completed++;
   });
 
   return {
@@ -752,12 +813,16 @@ async function renderAccordion(block) {
       const subKey = sub.id;
       const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
 
-      const localNode = ensureSubNode(store, block.id, subKey);
-      const remoteItems = await loadWorkspace(block.id, subKey);
-      const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
+     const localNode = ensureSubNode(store, block.id, subKey);
+const remoteItems = await loadWorkspace(block.id, subKey);
+const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
 
-      const cnt = countItems(node);
-      const status = getSubStatus(node);
+const statusRecord = getModuleStatusRecord(block.id, subKey);
+node.done = statusRecord?.status === "done";
+node.reviewedAt = statusRecord?.reviewed_at || null;
+
+const cnt = countItems(node);
+const status = getSubStatus(node);
 
       return `
         <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
@@ -865,30 +930,28 @@ function wireAccordion(root) {
       return;
     }
 
-    if (action === "note-save-new") {
-      const ta = $(".note-new-text", item);
-      const text = (ta?.value || "").trim();
-      if (!text) return;
+   if (action === "note-save-new") {
+  const ta = $(".note-new-text", item);
+  const text = (ta?.value || "").trim();
+  if (!text) return;
 
-      saveNote(realBlockId, subKey, text)
-        .then(async () => {
-          const store = loadStore();
-          resetModuleDone(store, realBlockId, subKey);
-          saveStore(store);
+  saveNote(realBlockId, subKey, text)
+    .then(async () => {
+      await reopenModuleStatus(realBlockId, subKey);
 
-          if (ta) ta.value = "";
-          const box = $(".note-compose", item);
-          if (box) box.style.display = "none";
+      if (ta) ta.value = "";
+      const box = $(".note-compose", item);
+      if (box) box.style.display = "none";
 
-          await refreshSubUI(realBlockId, subKey, item);
-        })
-        .catch(err => {
-          console.error("note-save-new error:", err);
-          alert("Error al guardar la nota");
-        });
+      await refreshSubUI(realBlockId, subKey, item);
+    })
+    .catch(err => {
+      console.error("note-save-new error:", err);
+      alert("Error al guardar la nota");
+    });
 
-      return;
-    }
+  return;
+}
   });
 
   root.addEventListener("click", (e) => {
@@ -940,11 +1003,8 @@ function wireAccordion(root) {
 
       updateWorkspaceNoteRemote(remoteId, text)
         .then(async () => {
-          const store = loadStore();
-          resetModuleDone(store, realBlockId, subKey);
-          saveStore(store);
-
-          await refreshSubUI(realBlockId, subKey, item);
+     await reopenModuleStatus(realBlockId, subKey);
+await refreshSubUI(realBlockId, subKey, item);
         })
         .catch(err => {
           console.error("note update error:", err);
@@ -1022,11 +1082,8 @@ async function onAddLink(blockId, subKey, accItem) {
   try {
     await saveLink(blockId, subKey, url);
 
-    const store = loadStore();
-    resetModuleDone(store, blockId, subKey);
-    saveStore(store);
-
-    await refreshSubUI(blockId, subKey, accItem);
+    await reopenModuleStatus(realBlockId, subKey);
+await refreshSubUI(realBlockId, subKey, item);
   } catch (err) {
     console.error("onAddLink error:", err);
     alert("No se pudo guardar el link.");
@@ -1046,11 +1103,8 @@ function onUpload(blockId, subKey, accItem) {
     try {
       await uploadFileToStorage(f, blockId, subKey, "file");
 
-      const store = loadStore();
-      resetModuleDone(store, blockId, subKey);
-      saveStore(store);
-
-      await refreshSubUI(blockId, subKey, accItem);
+await reopenModuleStatus(blockId, subKey);
+await refreshSubUI(blockId, subKey, accItem);
     } catch (err) {
       console.error("UPLOAD ERROR FULL:", err);
       alert(err?.message || JSON.stringify(err) || "No se pudo subir el archivo.");
@@ -1073,11 +1127,8 @@ function onUploadTheory(blockId, subKey, accItem) {
     try {
       await uploadFileToStorage(f, blockId, subKey, "theory");
 
-      const store = loadStore();
-      resetModuleDone(store, blockId, subKey);
-      saveStore(store);
-
-      await refreshSubUI(blockId, subKey, accItem);
+ await reopenModuleStatus(realBlockId, subKey);
+await refreshSubUI(realBlockId, subKey, item);
     } catch (err) {
       console.error("UPLOAD THEORY ERROR FULL:", err);
       alert(err?.message || JSON.stringify(err) || "No se pudo subir el material teórico.");
