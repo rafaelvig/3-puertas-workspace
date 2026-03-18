@@ -777,3 +777,12 @@ body{
   box-shadow:0 18px 50px rgba(0,0,0,.28);
   backdrop-filter:blur(10px);
 }
+.mini-list a {
+  color: #bfeff2;
+  text-decoration: none;
+}
+
+.mini-list a:hover {
+  text-decoration: underline;
+  color: #ffffff;
+}
