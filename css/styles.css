@@ -40,7 +40,7 @@ body{
 ========================= */
 .topbar{
   position:sticky;
-  top:110px;
+  top:0;
   z-index:20;
   display:flex;
   align-items:center;
