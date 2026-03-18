@@ -1252,7 +1252,7 @@ const delBtn = (type, index, entry = {}) =>
   }
 
   return parts.join("");
-}
+
 
 
 /* -----------------------
