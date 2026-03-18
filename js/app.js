@@ -1170,7 +1170,7 @@ const delBtn = (type, index, entry = {}) =>
   `</li>`
 ].join("");
     parts.push(`<ul class="mini-list">${li}</ul>`);
-  }
+  
 
   /* =========================
      LINKS
