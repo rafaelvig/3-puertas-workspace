@@ -235,16 +235,46 @@ async function saveNote(blockId, subtopic, text) {
       type: "note",
       content: cleanText
     })
-    .select();
+    .select()
+    .single();
 
   if (error) {
     console.error("saveNote error:", error);
     return null;
   }
 
-  return data?.[0] || null;
+  return data || null;
 }
 
+  return data?.[0] || null;
+}
+async function saveLink(blockId, subtopic, url, title = "") {
+  const cleanUrl = (url || "").trim();
+  const cleanTitle = (title || "").trim();
+
+  if (!cleanUrl) return null;
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .insert({
+      company_id: state.companyId,
+      channel_id: state.channelId,
+      block_id: blockId,
+      subtopic,
+      type: "link",
+      content: cleanUrl,
+      title: cleanTitle
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("saveLink error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
 /* -----------------------
    Storage (local)
 ------------------------ */
@@ -902,25 +932,37 @@ function wireAccordion(root) {
       return;
     }
 
-    const btnSave = e.target.closest("[data-note-save]");
-    if (btnSave) {
-      const idx = Number(btnSave.getAttribute("data-note-save"));
-      const box = item.querySelector(`[data-note-editbox="${idx}"]`);
-      const ta = box?.querySelector("textarea");
-      const text = (ta?.value || "").trim();
-      if (!text) return;
+   const btnSave = e.target.closest("[data-note-save]");
+if (btnSave) {
+  const idx = Number(btnSave.getAttribute("data-note-save"));
+  const box = item.querySelector(`[data-note-editbox="${idx}"]`);
+  const ta = box?.querySelector("textarea");
+  const text = (ta?.value || "").trim();
+  if (!text) return;
 
+  const view = item.querySelector(`[data-note-view="${idx}"]`);
+  const remoteId = view?.getAttribute("data-remote-id") || null;
+
+  if (!remoteId) {
+    alert("Esta nota no tiene identificador remoto para actualizarse.");
+    return;
+  }
+
+  updateWorkspaceNoteRemote(remoteId, text)
+    .then(async () => {
       const store = loadStore();
-      const node = ensureSubNode(store, realBlockId, subKey);
-
-      if (node.notes?.[idx]) node.notes[idx].text = text;
-
       resetModuleDone(store, realBlockId, subKey);
       saveStore(store);
 
-      refreshSubUI(realBlockId, subKey, item);
-      return;
-    }
+      await refreshSubUI(realBlockId, subKey, item);
+    })
+    .catch(err => {
+      console.error("note update error:", err);
+      alert("No se pudo actualizar la nota.");
+    });
+
+  return;
+}
   });
 
   root.addEventListener("click", async (e) => {
@@ -976,25 +1018,24 @@ function wireAccordion(root) {
     }
   });
 }
-function onAddLink(blockId, subKey, accItem) {
+async function onAddLink(blockId, subKey, accItem) {
   const url = prompt("Pegá la URL del link:");
   if (!url || !url.trim()) return;
 
   const title = prompt("Título del link (opcional):") || "";
 
-  const store = loadStore();
-  const node = ensureSubNode(store, blockId, subKey);
+  try {
+    await saveLink(blockId, subKey, url, title);
 
-  node.links.unshift({
-    url: url.trim(),
-    title: title.trim(),
-    ts: Date.now()
-  });
+    const store = loadStore();
+    resetModuleDone(store, blockId, subKey);
+    saveStore(store);
 
-  resetModuleDone(store, blockId, subKey);
-  saveStore(store);
-
-  refreshSubUI(blockId, subKey, accItem);
+    await refreshSubUI(blockId, subKey, accItem);
+  } catch (err) {
+    console.error("onAddLink error:", err);
+    alert("No se pudo guardar el link.");
+  }
 }
 
 function onUpload(blockId, subKey, accItem) {
@@ -1048,7 +1089,9 @@ function onUpload(blockId, subKey, accItem) {
 
 async function refreshSubUI(blockId, subKey, accItem) {
   const store = loadStore();
-  const node = ensureSubNode(store, blockId, subKey);
+  const localNode = ensureSubNode(store, blockId, subKey);
+  const remoteItems = await loadWorkspace(blockId, subKey);
+  const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
   const status = getSubStatus(node);
 
   const cntEl = $(".acc-count", accItem);
@@ -1071,7 +1114,6 @@ async function refreshSubUI(blockId, subKey, accItem) {
   render();
   await rerenderOpenDrawer();
 }
-
 function renderMiniList(node) {
   const notes = node?.notes || [];
   const links = node?.links || [];
@@ -1112,7 +1154,7 @@ const delBtn = (type, index, entry = {}) =>
 
       return [
         `<li style="margin-bottom:8px;">`,
-        `<div class="note-view" data-note-view="${i}">`,
+<div class="note-view" data-note-view="${i}" data-remote-id="${escapeAttr(n.remoteId || "")}">
         textView,
         editBtn(i),
         delBtn("note", i, n),
