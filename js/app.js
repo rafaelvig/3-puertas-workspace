@@ -168,10 +168,10 @@ async function loadWorkspace(blockId, subtopic) {
 }
 function buildNodeFromWorkspaceItems(items, localNode = {}) {
   const node = {
-    notes: [],
-    links: [],
-    files: [],
-    theory: [],
+    notes: Array.isArray(localNode?.notes) ? [...localNode.notes] : [],
+    links: Array.isArray(localNode?.links) ? [...localNode.links] : [],
+    files: Array.isArray(localNode?.files) ? [...localNode.files] : [],
+    theory: Array.isArray(localNode?.theory) ? [...localNode.theory] : [],
     surveys: Array.isArray(localNode?.surveys) ? localNode.surveys : [],
     done: typeof localNode?.done === "boolean" ? localNode.done : false,
     reviewedAt: localNode?.reviewedAt || null
@@ -931,11 +931,30 @@ function wireAccordion(root) {
     const store = loadStore();
     const node = ensureSubNode(store, realBlockId, subKey);
 
-    let entry = null;
-    if (type === "note") entry = node.notes?.[index];
-    if (type === "link") entry = node.links?.[index];
-    if (type === "file") entry = node.files?.[index];
-    if (type === "theory") entry = node.theory?.[index];
+   let entry = null;
+if (type === "note") entry = node.notes?.[index];
+if (type === "link") entry = node.links?.[index];
+if (type === "file") entry = node.files?.[index];
+if (type === "theory") entry = node.theory?.[index];
+
+if (!entry) {
+  entry = {
+    remoteId: delBtn.getAttribute("data-remote-id") || null,
+    path: delBtn.getAttribute("data-path") || "",
+    name: delBtn.getAttribute("data-name") || "",
+    title: delBtn.getAttribute("data-name") || "",
+    url: delBtn.getAttribute("data-name") || "",
+    text: delBtn.getAttribute("data-name") || ""
+  };
+}
+
+console.log("DELETE CLICK", { type, index, entry });
+
+if (!entry || (!entry.remoteId && !entry.path)) {
+  console.warn("DELETE WITHOUT IDENTIFIER", { type, index, entry });
+  alert("Este elemento viejo no tiene identificador suficiente para borrarse desde la interfaz.");
+  return;
+}
 
     console.log("DELETE CLICK", { type, index, entry });
 
@@ -1068,9 +1087,16 @@ function renderMiniList(node) {
 
   const parts = [];
 
-  const delBtn = (type, index) =>
-    `<button type="button" data-del="${type}" data-index="${index}"
-      style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:#ff6b6b;">✕</button>`;
+const delBtn = (type, index, entry = {}) =>
+  `<button
+      type="button"
+      data-del="${type}"
+      data-index="${index}"
+      data-remote-id="${escapeAttr(entry.remoteId || "")}"
+      data-path="${escapeAttr(entry.path || "")}"
+      data-name="${escapeAttr(entry.name || entry.title || entry.url || entry.text || "")}"
+      style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:#ff6b6b;"
+    >✕</button>`;
 
   const editBtn = (index) =>
     `<button data-note-edit="${index}"
@@ -1092,7 +1118,7 @@ function renderMiniList(node) {
         `<div class="note-view" data-note-view="${i}">`,
         textView,
         editBtn(i),
-        delBtn("note", i),
+        delBtn("note", i, n),
         `</div>`,
         `<div class="note-edit" data-note-editbox="${i}" style="display:none;margin-top:8px;">`,
         `<textarea rows="4"
@@ -1131,7 +1157,7 @@ function renderMiniList(node) {
           style="text-decoration:underline;opacity:.9;">`,
         label,
         `</a>`,
-        delBtn("link", i),
+        delBtn("link", i, l),
         `</li>`
       ].join("");
     }).join("");
@@ -1156,7 +1182,7 @@ function renderMiniList(node) {
           ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
               style="text-decoration:underline;opacity:.9;">${label}</a>`
           : label,
-        delBtn("file", i),
+        delBtn("file", i,f),
         `</li>`
       ].join("");
     }).join("");
@@ -1182,7 +1208,7 @@ function renderMiniList(node) {
           ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
               style="text-decoration:underline;opacity:.95;">${label}</a>`
           : label,
-        delBtn("theory", i),
+        delBtn("theory", i, t),
         `</li>`
       ].join("");
     }).join("");
