@@ -1213,8 +1213,8 @@ function renderMiniList(node) {
 
       return [
         `<li>`,
-        `<a href="${href}" target="_blank" rel="noopener noreferrer"
-          style="text-decoration:underline;opacity:.9;">`,
+    `<a href="${href}" target="_blank" rel="noopener noreferrer"
+  style="text-decoration:underline;opacity:.9;color:#ffffff;">`
         label,
         `</a>`,
         delBtn("link", i, l),
