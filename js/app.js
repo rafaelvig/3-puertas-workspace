@@ -637,6 +637,7 @@ async function openDrawer(blockId) {
 
     wireAccordion(panel);
     highlightActiveCard();
+    panel.scrollTop = 0;
   } catch (err) {
     console.error("openDrawer error:", err);
     panel.innerHTML = `
