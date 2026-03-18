@@ -358,31 +358,29 @@ async function toggleModuleDone(blockId, subKey) {
   await renderAll();
 }
 
-async function getAllModules() {
+function getAllModules() {
   const modules = [];
   const store = loadStore();
   const blocks = window.WS_CONFIG?.planes?.[state.tab] || [];
 
-  for (const block of blocks) {
-    for (const sub of (block.subs || [])) {
+  blocks.forEach(block => {
+    (block.subs || []).forEach(sub => {
       const subKey = sub.id;
-      const localNode = ensureSubNode(store, block.id, subKey);
-      const remoteItems = await loadWorkspace(block.id, subKey);
-      const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
+      const node = ensureSubNode(store, block.id, subKey);
 
       modules.push({
         blockId: block.id,
         subKey,
         node
       });
-    }
-  }
+    });
+  });
 
   return modules;
 }
 
-async function getWorkspaceProgress() {
-  const modules = await getAllModules();
+function getWorkspaceProgress() {
+  const modules = getAllModules();
   const total = modules.length;
 
   const done = modules.filter(m => m.node.done).length;
@@ -424,7 +422,7 @@ async function renderWorkspaceProgress() {
   const el = $("#workspaceProgress");
   if (!el) return;
 
-  const p = await getWorkspaceProgress();
+  const p = getWorkspaceProgress();
 
   el.innerHTML = `
     <div class="wp-card">
