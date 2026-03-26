@@ -1428,15 +1428,27 @@ async function applyAuthGate() {
 }
 
 async function logoutWorkspace() {
+  console.log("entró a logoutWorkspace");
+
   const { error } = await sb.auth.signOut();
+
   if (error) {
     console.error("logout error:", error);
     alert("No se pudo cerrar la sesión.");
     return;
   }
 
-  window.location.reload();
+  console.log("logout ok");
+  window.location.href = window.location.origin + window.location.pathname;
 }
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("#btnLogout");
+  if (!btn) return;
+
+  console.log("click logout detectado");
+  await logoutWorkspace();
+});
 
 
 /* -----------------------
@@ -1449,7 +1461,6 @@ function initApp() {
   initSelectors();
   initTabs();
   initDrawer();
-  $("#btnLogout")?.addEventListener("click", logoutWorkspace);
 }
 
 async function boot() {
