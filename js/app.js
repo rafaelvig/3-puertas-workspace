@@ -1432,8 +1432,12 @@ async function logoutWorkspace() {
   if (error) {
     console.error("logout error:", error);
     alert("No se pudo cerrar la sesión.");
+    return;
   }
+
+  window.location.reload();
 }
+
 
 /* -----------------------
    App init
