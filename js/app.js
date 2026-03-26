@@ -1428,26 +1428,22 @@ async function applyAuthGate() {
 }
 
 async function logoutWorkspace() {
-  console.log("entró a logoutWorkspace");
-
   try {
-    const { data, error } = await sb.auth.signOut();
-
-    console.log("respuesta signOut:", { data, error });
+    const { error } = await sb.auth.signOut();
 
     if (error) {
-      console.error("logout error:", error);
-      alert("No se pudo cerrar la sesión.");
-      return;
+      console.warn("signOut falló, forzando limpieza local", error);
     }
 
-    console.log("logout ok");
-    window.location.href = window.location.origin + window.location.pathname;
-
   } catch (err) {
-    console.error("EXCEPCIÓN en logout:", err);
-    alert("Error inesperado al cerrar sesión");
+    console.warn("Excepción en signOut, forzando limpieza", err);
   }
+
+  // limpieza forzada (evita estados inconsistentes)
+  localStorage.removeItem("workspace_last_email");
+  sessionStorage.clear();
+
+  window.location.href = window.location.origin + window.location.pathname;
 }
 
 document.addEventListener("click", async (e) => {
