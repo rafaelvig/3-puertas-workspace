@@ -16,7 +16,7 @@ window.WS_CONFIG = {
   desc: "TOFU - 1. Estrategia y Segmentación (25%)",
 
   surveys: {
-    a: "docs/encuestas-dm-farmacias-modelo.pdf"
+    a: "/docs/encuestas-dm-farmacias-modelo.pdf"
   },
 
   subs: [

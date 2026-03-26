@@ -13,14 +13,10 @@
 *{ box-sizing:border-box; }
 
 html, body{ height:100%; }
-
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Helvetica Neue", Helvetica, sans-serif;
-  background:
-    radial-gradient(1200px 800px at 20% 0%, rgba(120,106,255,.35), transparent 60%),
-    radial-gradient(900px 600px at 90% 10%, rgba(0,215,255,.22), transparent 55%),
-    var(--bg);
+  background: #09111d;
   color:var(--text);
 }
 
@@ -255,63 +251,7 @@ body{
 }
 
 /* =========================
-   DRAWER
-========================= */
-.drawer{
-  position:fixed;
-  inset:0;
-  z-index:50;
-  display:none;
-}
 
-.drawer.is-open{
-  display:block;
-}
-
-.drawer-backdrop{
-  position:absolute;
-  inset:0;
-  background:rgba(0,0,0,.55);
-}
-
-.drawer-panel{
-  position:absolute;
-  top:0;
-  right:0;
-  width:min(560px, 92vw);
-  height:100%;
-  border-left:1px solid var(--line);
-  background:rgba(11,15,26,.92);
-  backdrop-filter:blur(14px);
-  box-shadow:var(--shadow);
-  display:flex;
-  flex-direction:column;
-}
-
-.drawer-header{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  padding:16px;
-  border-bottom:1px solid var(--line);
-}
-
-.drawer-title{
-  font-weight:760;
-  letter-spacing:.2px;
-}
-
-.drawer-meta{
-  margin-top:6px;
-  font-size:12px;
-  color:var(--muted);
-}
-
-.drawer-body{
-  padding:16px;
-  overflow:auto;
-}
 
 .icon-btn{
   border:1px solid var(--line);
@@ -762,3 +702,42 @@ body{
   border: 1px solid rgba(103, 232, 249, 0.28);
   color: #dffaff;
 }
+
+.workspace-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 520px;
+  gap:20px;
+  align-items:start;
+  margin-top:20px;
+}
+
+.workspace-main{
+  min-width:0;
+}
+
+.detail-panel{
+  min-width:0;
+  align-self:start;
+  position:sticky;
+  top:110px;
+}
+
+.detail-panel-inner{
+  margin-top:0;
+  max-height:calc(100vh - 130px);
+  overflow:auto;
+}
+
+.detail-empty{
+  opacity:.7;
+  padding:20px 10px;
+}
+
+.detail-head{
+  margin-bottom:16px;
+  padding-bottom:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.detail-title{
+

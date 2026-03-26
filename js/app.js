@@ -5,7 +5,8 @@ const state = {
   tab: "strategy",
   companyId: null,
   channelId: null,
-  openBlockId: null
+  openBlockId: null,
+  moduleStatusMap: {}
 };
 
 let sendingMagicLink = false;
@@ -32,11 +33,10 @@ function initLoginEmailSuggestion() {
   if (!input || !datalist) return;
 
   const lastEmail = loadLastLoginEmail();
+  if (!lastEmail) return;
 
-  if (lastEmail) {
-    input.value = lastEmail;
-    datalist.innerHTML = `<option value="${escapeAttr(lastEmail)}"></option>`;
-  }
+  input.value = lastEmail;
+  datalist.innerHTML = `<option value="${escapeAttr(lastEmail)}"></option>`;
 }
 
 /* -----------------------
@@ -61,69 +61,44 @@ async function logWorkspaceLogin(user) {
 }
 
 /* -----------------------
-   SUPABASE
+   Local state (solo UI)
 ------------------------ */
-
-async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
-  const user = await getSessionUser();
-  if (!user?.id) throw new Error("No hay usuario autenticado");
-
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `${state.companyId}/${state.channelId}/${blockId}/${subKey}/${Date.now()}_${safeName}`;
-
-  console.log("STEP 1 - preparando upload", {
-    userId: user.id,
-    bucket: "workspace-files",
-    path,
-    fileName: file.name,
-    size: file.size,
-    type: file.type
-  });
-
-  const { data: uploadData, error: uploadError } = await sb
-    .storage
-    .from("workspace-files")
-    .upload(path, file, { upsert: false });
-
-  console.log("STEP 2 - resultado upload", { uploadData, uploadError });
-
-  if (uploadError) throw uploadError;
-
-  const { data: signedData, error: signedError } = await sb
-    .storage
-    .from("workspace-files")
-    .createSignedUrl(path, 60 * 60 * 24 * 7);
-
-  console.log("STEP 3 - resultado signed url", { signedData, signedError });
-
-  if (signedError) throw signedError;
-
-  const payload = {
-    company_id: state.companyId,
-    channel_id: state.channelId,
-    block_id: blockId,
-    subtopic: subKey,
-    type: itemType,
-    content: file.name,
-    file_path: path,
-    file_url: signedData?.signedUrl || null,
-    created_by: user.id
-  };
-
-  console.log("STEP 4 - insert workspace_items", payload);
-
-  const { data, error: insertError } = await sb
-    .from("workspace_items")
-    .insert(payload)
-    .select()
-    .single();
-
-  console.log("STEP 5 - resultado insert", { data, insertError });
-
-  if (insertError) throw insertError;
-
-  return data;
+function storageKey() {
+  return `3pws:${state.companyId}:${state.channelId}:${state.tab}`;
 }
+
+function loadStore() {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveStore(obj) {
+  localStorage.setItem(storageKey(), JSON.stringify(obj));
+}
+
+function ensureSubNode(store, blockId, subKey) {
+  store[blockId] = store[blockId] || {};
+  store[blockId][subKey] = store[blockId][subKey] || {};
+
+  const node = store[blockId][subKey];
+  node.done = typeof node.done === "boolean" ? node.done : false;
+  node.reviewedAt = node.reviewedAt || null;
+
+  return node;
+}
+
+function resetModuleDone(store, blockId, subKey) {
+  const node = ensureSubNode(store, blockId, subKey);
+  node.done = false;
+  node.reviewedAt = null;
+}
+
+/* -----------------------
+   Supabase content
+------------------------ */
 async function loadWorkspace(blockId, subtopic) {
   const { data, error } = await sb
     .from("workspace_items")
@@ -141,6 +116,219 @@ async function loadWorkspace(blockId, subtopic) {
 
   return data || [];
 }
+
+async function saveNote(blockId, subtopic, text) {
+  const cleanText = (text || "").trim();
+  if (!cleanText) return null;
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .insert({
+      company_id: state.companyId,
+      channel_id: state.channelId,
+      block_id: blockId,
+      subtopic,
+      type: "note",
+      content: cleanText
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("saveNote error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+async function saveLink(blockId, subtopic, url) {
+  let cleanUrl = (url || "").trim();
+  if (!cleanUrl) return null;
+
+  if (!/^https?:\/\//i.test(cleanUrl)) {
+    cleanUrl = "https://" + cleanUrl;
+  }
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .insert({
+      company_id: state.companyId,
+      channel_id: state.channelId,
+      block_id: blockId,
+      subtopic,
+      type: "link",
+      content: cleanUrl
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("saveLink error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+async function updateWorkspaceNoteRemote(remoteId, text) {
+  const cleanText = (text || "").trim();
+  if (!remoteId) throw new Error("Falta remoteId");
+  if (!cleanText) throw new Error("Texto vacío");
+
+  const { data, error } = await sb
+    .from("workspace_items")
+    .update({ content: cleanText })
+    .eq("id", remoteId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("updateWorkspaceNoteRemote error:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+function moduleStatusKey(blockId, subKey) {
+  return `${state.companyId}::${state.channelId}::${blockId}::${subKey}`;
+}
+
+async function refreshModuleStatusMap() {
+  const { data, error } = await sb
+    .from("workspace_module_status")
+    .select("block_id, subtopic, status, reviewed_at, reviewed_by")
+    .eq("company_id", state.companyId)
+    .eq("channel_id", state.channelId);
+
+  if (error) {
+    console.error("refreshModuleStatusMap error:", error);
+    state.moduleStatusMap = {};
+    return {};
+  }
+
+  const map = {};
+  (data || []).forEach(row => {
+    map[moduleStatusKey(row.block_id, row.subtopic)] = row;
+  });
+
+  state.moduleStatusMap = map;
+  return map;
+}
+
+function getModuleStatusRecord(blockId, subKey) {
+  return state.moduleStatusMap[moduleStatusKey(blockId, subKey)] || null;
+}
+
+async function setModuleStatusRemote(blockId, subKey, status) {
+  const user = await getSessionUser();
+
+  const payload = {
+    company_id: state.companyId,
+    channel_id: state.channelId,
+    block_id: blockId,
+    subtopic: subKey,
+    status,
+    reviewed_at: status === "done" ? new Date().toISOString() : null,
+    reviewed_by: status === "done" ? user?.id || null : null,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } = await sb
+    .from("workspace_module_status")
+    .upsert(payload, {
+      onConflict: "company_id,channel_id,block_id,subtopic"
+    });
+
+  if (error) {
+    console.error("setModuleStatusRemote error:", error);
+    throw error;
+  }
+
+  await refreshModuleStatusMap();
+}
+
+async function reopenModuleStatus(blockId, subKey) {
+  await setModuleStatusRemote(blockId, subKey, "working");
+}
+
+
+async function uploadFileToStorage(file, blockId, subKey, itemType = "file") {
+  const user = await getSessionUser();
+  if (!user?.id) throw new Error("No hay usuario autenticado");
+
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${state.companyId}/${state.channelId}/${blockId}/${subKey}/${Date.now()}_${safeName}`;
+
+  const { error: uploadError } = await sb
+    .storage
+    .from("workspace-files")
+    .upload(path, file, { upsert: false });
+
+  if (uploadError) throw uploadError;
+
+  const { data: signedData, error: signedError } = await sb
+    .storage
+    .from("workspace-files")
+    .createSignedUrl(path, 60 * 60 * 24 * 7);
+
+  if (signedError) throw signedError;
+
+  const payload = {
+    company_id: state.companyId,
+    channel_id: state.channelId,
+    block_id: blockId,
+    subtopic: subKey,
+    type: itemType,
+    content: file.name,
+    file_path: path,
+    file_url: signedData?.signedUrl || null,
+    created_by: user.id
+  };
+
+  const { data, error: insertError } = await sb
+    .from("workspace_items")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (insertError) throw insertError;
+
+  return data;
+}
+
+async function deleteWorkspaceItemRemote(entry) {
+  if (!entry?.remoteId) {
+    throw new Error("Falta remoteId en el item a eliminar.");
+  }
+
+  if (entry.path) {
+    const { error: storageError } = await sb
+      .storage
+      .from("workspace-files")
+      .remove([entry.path]);
+
+    if (storageError) {
+      console.error("storage remove error:", storageError);
+      throw storageError;
+    }
+  }
+
+  const { error: rowError } = await sb
+    .from("workspace_items")
+    .delete()
+    .eq("id", entry.remoteId);
+
+  if (rowError) {
+    console.error("workspace_items delete error:", rowError);
+    throw rowError;
+  }
+}
+
+/* -----------------------
+   Build view model
+------------------------ */
 function buildNodeFromWorkspaceItems(items, localNode = {}) {
   const node = {
     notes: [],
@@ -152,7 +340,7 @@ function buildNodeFromWorkspaceItems(items, localNode = {}) {
     reviewedAt: localNode?.reviewedAt || null
   };
 
-  (items || []).forEach(row => {
+  (items || []).forEach((row) => {
     if (row.type === "note") {
       node.notes.push({
         text: row.content || "",
@@ -165,7 +353,6 @@ function buildNodeFromWorkspaceItems(items, localNode = {}) {
     if (row.type === "link") {
       node.links.push({
         url: row.content || "",
-        title: row.title || "",
         ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
         remoteId: row.id
       });
@@ -196,72 +383,13 @@ function buildNodeFromWorkspaceItems(items, localNode = {}) {
 
   return node;
 }
-async function saveNote(blockId, subtopic, text) {
-  const cleanText = (text || "").trim();
-  if (!cleanText) return null;
-
-  const { data, error } = await sb
-    .from("workspace_items")
-    .insert({
-      company_id: state.companyId,
-      channel_id: state.channelId,
-      block_id: blockId,
-      subtopic,
-      type: "note",
-      content: cleanText
-    })
-    .select();
-
-  if (error) {
-    console.error("saveNote error:", error);
-    return null;
-  }
-
-  return data?.[0] || null;
-}
-
-/* -----------------------
-   Storage (local)
------------------------- */
-function storageKey() {
-  return `3pws:${state.companyId}:${state.channelId}:${state.tab}`;
-}
-
-function loadStore() {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey()) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function saveStore(obj) {
-  localStorage.setItem(storageKey(), JSON.stringify(obj));
-}
-
-function ensureSubNode(store, blockId, subKey) {
-  store[blockId] = store[blockId] || {};
-  store[blockId][subKey] = store[blockId][subKey] || {};
-
-  const node = store[blockId][subKey];
-
-  node.notes = Array.isArray(node.notes) ? node.notes : [];
-  node.links = Array.isArray(node.links) ? node.links : [];
-  node.files = Array.isArray(node.files) ? node.files : [];
-  node.theory = Array.isArray(node.theory) ? node.theory : [];
-  node.surveys = Array.isArray(node.surveys) ? node.surveys : [];
-  node.done = typeof node.done === "boolean" ? node.done : false;
-  node.reviewedAt = node.reviewedAt || null;
-
-  return node;
-}
 
 function countItems(node) {
   return (
     (node?.notes?.length || 0) +
     (node?.links?.length || 0) +
     (node?.files?.length || 0) +
-       (node?.theory?.length || 0) +
+    (node?.theory?.length || 0) +
     (node?.surveys?.length || 0)
   );
 }
@@ -280,31 +408,29 @@ function getStatusLabel(status) {
   return "Pendiente";
 }
 
+/* -----------------------
+   Progress
+------------------------ */
 async function toggleModuleDone(blockId, subKey) {
-  const store = loadStore();
-  const node = ensureSubNode(store, blockId, subKey);
+  const current = getModuleStatusRecord(blockId, subKey);
+  const nextStatus = current?.status === "done" ? "working" : "done";
 
-  node.done = !node.done;
-  node.reviewedAt = node.done ? new Date().toISOString() : null;
-
-  saveStore(store);
+  await setModuleStatusRemote(blockId, subKey, nextStatus);
   await renderAll();
 }
 
 function getAllModules() {
   const modules = [];
-  const store = loadStore();
   const blocks = window.WS_CONFIG?.planes?.[state.tab] || [];
 
   blocks.forEach(block => {
     (block.subs || []).forEach(sub => {
-      const subKey = sub.id;
-      const node = ensureSubNode(store, block.id, subKey);
+      const record = getModuleStatusRecord(block.id, sub.id);
 
       modules.push({
         blockId: block.id,
-        subKey,
-        node
+        subKey: sub.id,
+        status: record?.status || "empty"
       });
     });
   });
@@ -316,9 +442,9 @@ function getWorkspaceProgress() {
   const modules = getAllModules();
   const total = modules.length;
 
-  const done = modules.filter(m => m.node.done).length;
-  const working = modules.filter(m => getSubStatus(m.node) === "working").length;
-  const empty = total - done - working;
+  const done = modules.filter(m => m.status === "done").length;
+  const working = modules.filter(m => m.status === "working").length;
+  const empty = modules.filter(m => m.status === "empty").length;
 
   const percent = total ? Math.round((done / total) * 100) : 0;
 
@@ -330,7 +456,6 @@ function getWorkspaceProgress() {
 }
 
 function getBlockProgress(block) {
-  const store = loadStore();
   const subs = block?.subs || [];
   const total = subs.length;
 
@@ -341,9 +466,8 @@ function getBlockProgress(block) {
   let completed = 0;
 
   subs.forEach(sub => {
-    const subKey = sub.id;
-    const node = ensureSubNode(store, block.id, subKey);
-    if (node?.done) completed++;
+    const record = getModuleStatusRecord(block.id, sub.id);
+    if (record?.status === "done") completed++;
   });
 
   return {
@@ -353,7 +477,7 @@ function getBlockProgress(block) {
   };
 }
 
-function renderWorkspaceProgress() {
+async function renderWorkspaceProgress() {
   const el = $("#workspaceProgress");
   if (!el) return;
 
@@ -407,22 +531,8 @@ function renderModuleControls(blockId, subKey, node) {
   `;
 }
 
-function resetModuleDone(store, blockId, subKey) {
-  const node = ensureSubNode(store, blockId, subKey);
-  node.done = false;
-  node.reviewedAt = null;
-}
-
-async function logoutWorkspace() {
-  const { error } = await sb.auth.signOut();
-  if (error) {
-    console.error("logout error:", error);
-    alert("No se pudo cerrar la sesión.");
-  }
-}
-
 /* -----------------------
-   Init: selectors + tabs
+   UI init
 ------------------------ */
 function initSelectors() {
   const companies = window.WS_CONFIG?.companies || [];
@@ -435,17 +545,18 @@ function initSelectors() {
 
   state.companyId = companies[0]?.id || null;
 
-  selCompany.addEventListener("change", () => {
+  selCompany.addEventListener("change", async () => {
     state.companyId = selCompany.value;
     syncChannels();
     updateClientLogo();
-    renderAll();
     closeDrawer();
+    await renderAll();
   });
 
   syncChannels();
   updateClientLogo();
 }
+
 function syncChannels() {
   const selChannel = $("#selChannel");
   if (!selChannel) return;
@@ -459,24 +570,22 @@ function syncChannels() {
 
   state.channelId = channels[0]?.id || null;
 
-  selChannel.onchange = () => {
+  selChannel.onchange = async () => {
     state.channelId = selChannel.value;
-    renderAll();
     closeDrawer();
+    await renderAll();
   };
 }
-
 
 function updateClientLogo() {
   const logos = {
     monumento: "img/logo-monumento.svg"
   };
 
-  const el = document.getElementById("clientLogo");
+  const el = $("#clientLogo");
   if (!el) return;
 
   const src = logos[state.companyId];
-
   if (src) {
     el.src = src;
     el.style.display = "block";
@@ -484,6 +593,7 @@ function updateClientLogo() {
     el.style.display = "none";
   }
 }
+
 function initTabs() {
   const strategyItems = window.WS_CONFIG?.planes?.strategy || [];
   const systemItems = window.WS_CONFIG?.planes?.system || [];
@@ -498,7 +608,7 @@ function initTabs() {
   }
 
   $$(".tab").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const targetTab = btn.dataset.tab;
       const items = window.WS_CONFIG?.planes?.[targetTab] || [];
       if (items.length === 0) return;
@@ -512,11 +622,12 @@ function initTabs() {
       btn.setAttribute("aria-selected", "true");
       state.tab = targetTab;
 
-      renderAll();
       closeDrawer();
+      await renderAll();
     });
   });
 }
+
 /* -----------------------
    Cards
 ------------------------ */
@@ -559,127 +670,85 @@ function render() {
       openDrawer(id);
     });
   }
+
+  highlightActiveCard();
 }
 
 async function rerenderOpenDrawer() {
-  const drawer = $("#drawer");
-  if (!drawer) return;
-  if (!drawer.classList.contains("is-open")) return;
   if (!state.openBlockId) return;
-
-  const items = window.WS_CONFIG?.planes?.[state.tab] || [];
-  const block = items.find(x => x.id === state.openBlockId);
-  if (!block) return;
-
-  const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
-  const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
-
-  const drawerTitle = $("#drawerTitle");
-  const drawerMeta = $("#drawerMeta");
-  const body = $("#drawerBody");
-
-  if (drawerTitle) drawerTitle.textContent = block.title;
-  if (drawerMeta) {
-    drawerMeta.textContent =
-      `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
-  }
-
-  if (body) {
-    body.innerHTML = `<div class="mini">Actualizando...</div>`;
-    body.innerHTML = await renderAccordion(block);
-    wireAccordion(body);
-  }
+  await openDrawer(state.openBlockId);
 }
 
 async function renderAll() {
-  renderWorkspaceProgress();
+  await refreshModuleStatusMap();
   render();
-  await rerenderOpenDrawer();
+  rerenderOpenDrawer().catch(err => console.error("rerenderOpenDrawer error:", err));
+  renderWorkspaceProgress().catch(err => console.error("renderWorkspaceProgress error:", err));
 }
 
 /* -----------------------
-   Drawer
+   Drawer / detail
 ------------------------ */
 async function openDrawer(blockId) {
-  console.log("openDrawer", {
-    blockId,
-    tab: state.tab,
-    companyId: state.companyId,
-    channelId: state.channelId
-  });
-
   const items = window.WS_CONFIG?.planes?.[state.tab] || [];
   const block = items.find(x => x.id === blockId);
-  if (!block) {
-    console.warn("openDrawer: bloque no encontrado", { blockId, tab: state.tab, items });
-    return;
-  }
+  if (!block) return;
 
   state.openBlockId = blockId;
 
   const company = window.WS_CONFIG?.companies?.find(c => c.id === state.companyId);
   const channel = (company?.channels || []).find(ch => ch.id === state.channelId);
+  const panel = $("#detailPanelInner");
+  if (!panel) return;
 
-  const drawerTitle = $("#drawerTitle");
-  const drawerMeta = $("#drawerMeta");
-  const body = $("#drawerBody");
+  panel.innerHTML = `
+    <div class="detail-head">
+      <div class="detail-title">${escapeHtml(block.title)}</div>
+      <div class="detail-meta">
+        ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+      </div>
+    </div>
+    <div class="mini">Cargando...</div>
+  `;
 
-  if (drawerTitle) drawerTitle.textContent = block.title;
-  if (drawerMeta) {
-    drawerMeta.textContent =
-      `${company?.name || ""} · ${channel?.name || ""} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}`;
-  }
+  try {
+    const accordionHtml = await renderAccordion(block);
 
-  if (body) body.innerHTML = `<div class="mini">Cargando...</div>`;
+    panel.innerHTML = `
+      <div class="detail-head">
+        <div class="detail-title">${escapeHtml(block.title)}</div>
+        <div class="detail-meta">
+          ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+        </div>
+      </div>
+      ${accordionHtml}
+    `;
 
-  const drawer = $("#drawer");
-  if (drawer) {
-    drawer.classList.add("is-open");
-    drawer.setAttribute("aria-hidden", "false");
-  }
-
-  if (body) {
-    body.innerHTML = await renderAccordion(block);
-    wireAccordion(body);
-  }
-
-  const closeBtn = $("#drawerClose");
-  if (closeBtn) closeBtn.focus();
-}
-function renderSurveyButton(block, subId) {
-  const file = block?.surveys?.[subId];
-
-  if (file) {
-    return `
-      <a
-        class="btn btn-survey active"
-        href="${escapeAttr(file)}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Encuesta
-      </a>
+    wireAccordion(panel);
+    highlightActiveCard();
+  } catch (err) {
+    console.error("openDrawer error:", err);
+    panel.innerHTML = `
+      <div class="detail-head">
+        <div class="detail-title">${escapeHtml(block.title)}</div>
+        <div class="detail-meta">
+          ${escapeHtml(company?.name || "")} · ${escapeHtml(channel?.name || "")} · ${state.tab === "strategy" ? "Estrategia" : "Sistema Comercial"}
+        </div>
+      </div>
+      <div class="mini">Error al cargar este bloque.</div>
     `;
   }
-
-  return `
-    <button
-      class="btn btn-survey disabled"
-      type="button"
-      disabled
-    >
-      Encuesta
-    </button>
-  `;
 }
 
 function closeDrawer() {
-  const drawer = $("#drawer");
-  if (!drawer) return;
-
-  drawer.classList.remove("is-open");
-  drawer.setAttribute("aria-hidden", "true");
   state.openBlockId = null;
+
+  const panel = $("#detailPanelInner");
+  if (panel) {
+    panel.innerHTML = `<div class="detail-empty">Seleccioná un bloque para ver el detalle.</div>`;
+  }
+
+  highlightActiveCard();
 
   const activeTab = $(".tab.is-active");
   if (activeTab) activeTab.focus();
@@ -689,17 +758,39 @@ function initDrawer() {
   if (drawerInitialized) return;
   drawerInitialized = true;
 
-  $("#drawerClose")?.addEventListener("click", closeDrawer);
-  $("#drawerBackdrop")?.addEventListener("click", closeDrawer);
-
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeDrawer();
   });
 }
 
-/* -----------------------
-   Accordion render + wiring
------------------------- */
+function highlightActiveCard() {
+  $$(".card").forEach(card => {
+    card.classList.toggle("is-active", card.dataset.id === state.openBlockId);
+  });
+}
+
+function renderSurveyButton(block, subId) {
+  const file = block?.surveys?.[subId];
+  if (!file) {
+    return `
+      <button class="btn btn-survey disabled" type="button" disabled>
+        Encuesta
+      </button>
+    `;
+  }
+
+  return `
+    <a
+      class="btn btn-survey active"
+      href="${escapeAttr(file)}"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Encuesta
+    </a>
+  `;
+}
+
 async function renderAccordion(block) {
   const store = loadStore();
   const subs = block.subs || [];
@@ -721,12 +812,16 @@ async function renderAccordion(block) {
       const subKey = sub.id;
       const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
 
-      const localNode = ensureSubNode(store, block.id, subKey);
-      const remoteItems = await loadWorkspace(block.id, subKey);
-      const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
+     const localNode = ensureSubNode(store, block.id, subKey);
+const remoteItems = await loadWorkspace(block.id, subKey);
+const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
 
-      const cnt = countItems(node);
-      const status = getSubStatus(node);
+const statusRecord = getModuleStatusRecord(block.id, subKey);
+node.done = statusRecord?.status === "done";
+node.reviewedAt = statusRecord?.reviewed_at || null;
+
+const cnt = countItems(node);
+const status = getSubStatus(node);
 
       return `
         <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
@@ -771,10 +866,13 @@ async function renderAccordion(block) {
 
   return `<div class="accordion">${htmlParts.join("")}</div>`;
 }
+
+/* -----------------------
+   Wiring
+------------------------ */
 function wireAccordion(root) {
   if (!root) return;
 
-  // Headers: estos sí hay que volver a enlazarlos porque se recrean con innerHTML
   $$(".acc-header", root).forEach(btn => {
     if (btn.dataset.wiredHeader === "1") return;
 
@@ -786,8 +884,8 @@ function wireAccordion(root) {
     btn.dataset.wiredHeader = "1";
   });
 
-  // Delegados: estos deben registrarse una sola vez sobre drawerBody
   if (root.dataset.wiredDelegates === "1") return;
+  root.dataset.wiredDelegates = "1";
 
   root.addEventListener("click", (e) => {
     const actionBtn = e.target.closest("button[data-action]");
@@ -831,38 +929,28 @@ function wireAccordion(root) {
       return;
     }
 
-    if (action === "note-save-new") {
-      const ta = $(".note-new-text", item);
-      const text = (ta?.value || "").trim();
-      if (!text) return;
+   if (action === "note-save-new") {
+  const ta = $(".note-new-text", item);
+  const text = (ta?.value || "").trim();
+  if (!text) return;
 
-      saveNote(realBlockId, subKey, text)
-        .then((saved) => {
-          const store = loadStore();
-          const node = ensureSubNode(store, realBlockId, subKey);
+  saveNote(realBlockId, subKey, text)
+    .then(async () => {
+      await reopenModuleStatus(realBlockId, subKey);
 
-          node.notes.unshift({
-            text,
-            ts: Date.now(),
-            remoteId: saved?.id || null
-          });
+      if (ta) ta.value = "";
+      const box = $(".note-compose", item);
+      if (box) box.style.display = "none";
 
-          resetModuleDone(store, realBlockId, subKey);
-          saveStore(store);
+      await refreshSubUI(realBlockId, subKey, item);
+    })
+    .catch(err => {
+      console.error("note-save-new error:", err);
+      alert("Error al guardar la nota");
+    });
 
-          if (ta) ta.value = "";
-          const box = $(".note-compose", item);
-          if (box) box.style.display = "none";
-
-          refreshSubUI(realBlockId, subKey, item);
-        })
-        .catch(err => {
-          console.error("note-save-new error:", err);
-          alert("Error al guardar la nota");
-        });
-
-      return;
-    }
+  return;
+}
   });
 
   root.addEventListener("click", (e) => {
@@ -904,22 +992,35 @@ function wireAccordion(root) {
       const text = (ta?.value || "").trim();
       if (!text) return;
 
-      const store = loadStore();
-      const node = ensureSubNode(store, realBlockId, subKey);
+      const view = item.querySelector(`[data-note-view="${idx}"]`);
+      const remoteId = view?.getAttribute("data-remote-id") || null;
 
-      if (node.notes?.[idx]) node.notes[idx].text = text;
+      if (!remoteId) {
+        alert("Esta nota no tiene identificador remoto para actualizarse.");
+        return;
+      }
 
-      resetModuleDone(store, realBlockId, subKey);
-      saveStore(store);
+      updateWorkspaceNoteRemote(remoteId, text)
+        .then(async () => {
+     await reopenModuleStatus(realBlockId, subKey);
+await refreshSubUI(realBlockId, subKey, item);
+        })
+        .catch(err => {
+          console.error("note update error:", err);
+          alert("No se pudo actualizar la nota.");
+        });
 
-      refreshSubUI(realBlockId, subKey, item);
       return;
     }
   });
 
-  root.addEventListener("click", (e) => {
+  root.addEventListener("click", async (e) => {
     const delBtn = e.target.closest("[data-del]");
     if (!delBtn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     const item = delBtn.closest(".acc-item");
     const subKey = item?.getAttribute("data-sub");
@@ -929,88 +1030,59 @@ function wireAccordion(root) {
     const type = delBtn.getAttribute("data-del");
     const index = Number(delBtn.getAttribute("data-index"));
 
-    const store = loadStore();
-    const node = ensureSubNode(store, realBlockId, subKey);
+    const remoteItems = await loadWorkspace(realBlockId, subKey);
+    const localNode = ensureSubNode(loadStore(), realBlockId, subKey);
+    const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
 
-    if (type === "note") node.notes.splice(index, 1);
-    if (type === "link") node.links.splice(index, 1);
-    if (type === "file") node.files.splice(index, 1);
-    if (type === "theory") node.theory.splice(index, 1);
+    let entry = null;
+    if (type === "note") entry = node.notes?.[index];
+    if (type === "link") entry = node.links?.[index];
+    if (type === "file") entry = node.files?.[index];
+    if (type === "theory") entry = node.theory?.[index];
 
-    resetModuleDone(store, realBlockId, subKey);
-    saveStore(store);
+    if (!entry) {
+      entry = {
+        remoteId: delBtn.getAttribute("data-remote-id") || null,
+        path: delBtn.getAttribute("data-path") || "",
+        name: delBtn.getAttribute("data-name") || "",
+        url: delBtn.getAttribute("data-name") || "",
+        text: delBtn.getAttribute("data-name") || ""
+      };
+    }
 
-    refreshSubUI(realBlockId, subKey, item);
-  });
-
-  root.dataset.wiredDelegates = "1";
-}
-function onUploadTheory(blockId, subKey, accItem) {
-  const input = $(".file-input", accItem);
-  if (!input) return;
-
-  input.value = "";
-
-  input.onchange = async () => {
-    const f = input.files?.[0];
-    if (!f) return;
-
-    console.log("Material teórico seleccionado:", {
-      name: f.name,
-      type: f.type,
-      size: f.size,
-      blockId,
-      subKey
-    });
+    if (!entry?.remoteId) {
+      console.warn("DELETE WITHOUT REMOTE ID", { type, index, entry });
+      alert("Este elemento no se puede eliminar porque no tiene identificador válido.");
+      return;
+    }
 
     try {
-const saved = await uploadFileToStorage(f, blockId, subKey, "theory");
-      console.log("Material teórico guardado en Supabase:", saved);
+      await deleteWorkspaceItemRemote(entry);
 
-      const store = loadStore();
-      const node = ensureSubNode(store, blockId, subKey);
-
-      node.theory.unshift({
-        name: f.name,
-        size: f.size,
-        ts: Date.now(),
-        remoteId: saved?.id || null,
-        url: saved?.file_url || "",
-        path: saved?.file_path || ""
-      });
-
-      resetModuleDone(store, blockId, subKey);
-      saveStore(store);
-
-      refreshSubUI(blockId, subKey, accItem);
+   await reopenModuleStatus(realBlockId, subKey);
+await refreshSubUI(realBlockId, subKey, item);
     } catch (err) {
-      console.error("UPLOAD THEORY ERROR:", err);
-      alert(err?.message || "No se pudo subir el material teórico.");
+      console.error("delete item error:", err);
+      alert("No se pudo eliminar el documento.");
     }
-  };
-
-  input.click();
+  });
 }
 
-function onAddLink(blockId, subKey, accItem) {
+/* -----------------------
+   Actions
+------------------------ */
+async function onAddLink(blockId, subKey, accItem) {
   const url = prompt("Pegá la URL del link:");
   if (!url || !url.trim()) return;
 
-  const title = prompt("Título del link (opcional):") || "";
-
-  const store = loadStore();
-  const node = ensureSubNode(store, blockId, subKey);
-
-  node.links.unshift({
-    url: url.trim(),
-    title: title.trim(),
-    ts: Date.now()
-  });
-
-  resetModuleDone(store, blockId, subKey);
-  saveStore(store);
-
-  refreshSubUI(blockId, subKey, accItem);
+  try {
+    await saveLink(blockId, subKey, url);
+    await reopenModuleStatus(blockId, subKey);
+    await refreshSubUI(blockId, subKey, accItem);
+  } catch (err) {
+    console.error("onAddLink error:", err);
+    alert("No se pudo guardar el link.");
+  }
 }
 
 function onUpload(blockId, subKey, accItem) {
@@ -1023,36 +1095,11 @@ function onUpload(blockId, subKey, accItem) {
     const f = input.files?.[0];
     if (!f) return;
 
-    console.log("Archivo seleccionado:", {
-      name: f.name,
-      type: f.type,
-      size: f.size,
-      blockId,
-      subKey
-    });
-
     try {
-      const saved = await uploadFileToStorage(f, blockId, subKey);
-      console.log("Archivo guardado en Supabase:", saved);
+      await uploadFileToStorage(f, blockId, subKey, "file");
 
-      const store = loadStore();
-      const node = ensureSubNode(store, blockId, subKey);
-
-      node.files.unshift({
-        name: f.name,
-        size: f.size,
-        ts: Date.now(),
-        remoteId: saved?.id || null,
-        url: saved?.file_url || "",
-        path: saved?.file_path || ""
-      });
-
-      resetModuleDone(store, blockId, subKey);
-      saveStore(store);
-
-      console.log("STEP 6 - archivo agregado al store local", node.files[0]);
-
-      refreshSubUI(blockId, subKey, accItem);
+await reopenModuleStatus(blockId, subKey);
+await refreshSubUI(blockId, subKey, accItem);
     } catch (err) {
       console.error("UPLOAD ERROR FULL:", err);
       alert(err?.message || JSON.stringify(err) || "No se pudo subir el archivo.");
@@ -1062,9 +1109,34 @@ function onUpload(blockId, subKey, accItem) {
   input.click();
 }
 
-function refreshSubUI(blockId, subKey, accItem) {
+function onUploadTheory(blockId, subKey, accItem) {
+  const input = $(".file-input", accItem);
+  if (!input) return;
+
+  input.value = "";
+
+  input.onchange = async () => {
+    const f = input.files?.[0];
+    if (!f) return;
+
+    try {
+      await uploadFileToStorage(f, blockId, subKey, "theory");
+      await reopenModuleStatus(blockId, subKey);
+      await refreshSubUI(blockId, subKey, accItem);
+    } catch (err) {
+      console.error("UPLOAD THEORY ERROR FULL:", err);
+      alert(err?.message || JSON.stringify(err) || "No se pudo subir el material teórico.");
+    }
+  };
+
+  input.click();
+}
+
+async function refreshSubUI(blockId, subKey, accItem) {
   const store = loadStore();
-  const node = ensureSubNode(store, blockId, subKey);
+  const localNode = ensureSubNode(store, blockId, subKey);
+  const remoteItems = await loadWorkspace(blockId, subKey);
+  const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
   const status = getSubStatus(node);
 
   const cntEl = $(".acc-count", accItem);
@@ -1083,11 +1155,14 @@ function refreshSubUI(blockId, subKey, accItem) {
     controlsHost.insertAdjacentHTML("afterbegin", renderModuleControls(blockId, subKey, node));
   }
 
-  renderWorkspaceProgress();
+  await renderWorkspaceProgress();
   render();
-  rerenderOpenDrawer();
+  await rerenderOpenDrawer();
 }
 
+/* -----------------------
+   Render mini list
+------------------------ */
 function renderMiniList(node) {
   const notes = node?.notes || [];
   const links = node?.links || [];
@@ -1100,17 +1175,20 @@ function renderMiniList(node) {
 
   const parts = [];
 
-  const delBtn = (type, index) =>
-    `<button data-del="${type}" data-index="${index}"
-      style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:#ff6b6b;">✕</button>`;
+  const delBtn = (type, index, entry = {}) =>
+    `<button
+      type="button"
+      data-del="${type}"
+      data-index="${index}"
+      data-remote-id="${escapeAttr(entry.remoteId || "")}"
+      data-path="${escapeAttr(entry.path || "")}"
+      data-name="${escapeAttr(entry.name || entry.url || entry.text || "")}"
+      style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:#ff6b6b;"
+    >✕</button>`;
 
   const editBtn = (index) =>
     `<button data-note-edit="${index}"
       style="margin-left:8px;font-size:11px;opacity:.7;cursor:pointer;border:0;background:none;color:rgba(255,255,255,.8);text-decoration:underline;">Editar</button>`;
-
-  /* =========================
-     NOTAS
-  ========================= */
 
   if (notes.length) {
     parts.push(`<div class="mini-section-title"><span>Notas</span></div>`);
@@ -1121,10 +1199,10 @@ function renderMiniList(node) {
 
       return [
         `<li style="margin-bottom:8px;">`,
-        `<div class="note-view" data-note-view="${i}">`,
+        `<div class="note-view" data-note-view="${i}" data-remote-id="${escapeAttr(n.remoteId || "")}">`,
         textView,
         editBtn(i),
-        delBtn("note", i),
+        delBtn("note", i, n),
         `</div>`,
         `<div class="note-edit" data-note-editbox="${i}" style="display:none;margin-top:8px;">`,
         `<textarea rows="4"
@@ -1143,37 +1221,26 @@ function renderMiniList(node) {
     parts.push(`<ul class="mini-list">${li}</ul>`);
   }
 
-  /* =========================
-     LINKS
-  ========================= */
-
   if (links.length) {
     parts.push(`<div class="mini-section-title"><span>Links</span></div>`);
 
     const li = links.map((l, i) => {
-      const label = l.title
-        ? escapeHtml(trunc(l.title, 60))
-        : escapeHtml(trunc(l.url, 60));
-
       const href = escapeAttr(l.url);
+      const label = escapeHtml(trunc(l.url, 60));
 
       return [
         `<li>`,
         `<a href="${href}" target="_blank" rel="noopener noreferrer"
-          style="text-decoration:underline;opacity:.9;">`,
+          style="text-decoration:underline;opacity:.9;color:#ffffff;">`,
         label,
         `</a>`,
-        delBtn("link", i),
+        delBtn("link", i, l),
         `</li>`
       ].join("");
     }).join("");
 
     parts.push(`<ul class="mini-list">${li}</ul>`);
   }
-
-  /* =========================
-     ARCHIVOS
-  ========================= */
 
   if (files.length) {
     parts.push(`<div class="mini-section-title"><span>Archivos</span></div>`);
@@ -1188,17 +1255,13 @@ function renderMiniList(node) {
           ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
               style="text-decoration:underline;opacity:.9;">${label}</a>`
           : label,
-        delBtn("file", i),
+        delBtn("file", i, f),
         `</li>`
       ].join("");
     }).join("");
 
     parts.push(`<ul class="mini-list files">${li}</ul>`);
   }
-
-  /* =========================
-     MATERIAL TEORICO
-  ========================= */
 
   if (theory.length) {
     parts.push(`<div class="mini-section-title"><span>Material teórico</span></div>`);
@@ -1214,7 +1277,7 @@ function renderMiniList(node) {
           ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
               style="text-decoration:underline;opacity:.95;">${label}</a>`
           : label,
-        delBtn("theory", i),
+        delBtn("theory", i, f),
         `</li>`
       ].join("");
     }).join("");
@@ -1225,9 +1288,8 @@ function renderMiniList(node) {
   return parts.join("");
 }
 
-
 /* -----------------------
-   Utils (safe)
+   Utils
 ------------------------ */
 function trunc(s, n) {
   if (!s) return "";
@@ -1314,8 +1376,6 @@ async function isAuthorizedUser(email) {
     .eq("is_active", true)
     .maybeSingle();
 
-  console.log("isAuthorizedUser:", { normalizedEmail, data, error });
-
   if (error) {
     console.error("workspace_members auth error:", error);
     return false;
@@ -1367,6 +1427,14 @@ async function applyAuthGate() {
   }
 }
 
+async function logoutWorkspace() {
+  const { error } = await sb.auth.signOut();
+  if (error) {
+    console.error("logout error:", error);
+    alert("No se pudo cerrar la sesión.");
+  }
+}
+
 /* -----------------------
    App init
 ------------------------ */
@@ -1393,28 +1461,23 @@ async function boot() {
   if (!ok) return;
 
   initApp();
-  renderAll();
+  await renderAll();
 }
 
 boot();
 
 sb.auth.onAuthStateChange(async (event) => {
-  console.log("auth state change:", event);
-
   if (event === "SIGNED_OUT") {
     loginLoggedForSession = false;
     await applyAuthGate();
     return;
   }
 
-  if (event === "SIGNED_IN") {
+  if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
     const ok = await applyAuthGate();
     if (ok) {
       initApp();
-      renderAll();
+      await renderAll();
     }
-    return;
   }
-
-  // Ignorar TOKEN_REFRESHED y otros eventos para no rerenderizar toda la UI
 });
