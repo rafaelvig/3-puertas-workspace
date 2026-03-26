@@ -819,6 +819,7 @@ if (error) {
 }
 
 return { ok: true };
+}
 
 function showFinish(){
   card.innerHTML = "";
