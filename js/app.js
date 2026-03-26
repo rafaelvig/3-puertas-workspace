@@ -1430,16 +1430,24 @@ async function applyAuthGate() {
 async function logoutWorkspace() {
   console.log("entró a logoutWorkspace");
 
-  const { error } = await sb.auth.signOut();
+  try {
+    const { data, error } = await sb.auth.signOut();
 
-  if (error) {
-    console.error("logout error:", error);
-    alert("No se pudo cerrar la sesión.");
-    return;
+    console.log("respuesta signOut:", { data, error });
+
+    if (error) {
+      console.error("logout error:", error);
+      alert("No se pudo cerrar la sesión.");
+      return;
+    }
+
+    console.log("logout ok");
+    window.location.href = window.location.origin + window.location.pathname;
+
+  } catch (err) {
+    console.error("EXCEPCIÓN en logout:", err);
+    alert("Error inesperado al cerrar sesión");
   }
-
-  console.log("logout ok");
-  window.location.href = window.location.origin + window.location.pathname;
 }
 
 document.addEventListener("click", async (e) => {
