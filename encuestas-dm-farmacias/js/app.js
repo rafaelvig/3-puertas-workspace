@@ -777,11 +777,32 @@ console.log("RESPUESTAS:", state.answers);
 showFinish();
 });
 
+async function getFormId() {
+  const { data, error } = await sb
+    .from("forms")
+    .select("id")
+    .eq("slug", FORM_SLUG)
+    .single();
+
+  if (error) {
+    console.error("getFormId error:", error);
+    return null;
+  }
+
+  return data?.id || null;
+}
+
 async function submitSurveyResponse() {
   const { data: { user }, error: userError } = await sb.auth.getUser();
 
   if (userError || !user) {
     return { ok: false, message: "Su sesión no es válida. Ingrese nuevamente." };
+  }
+
+  const formId = await getFormId();
+
+  if (!formId) {
+    return { ok: false, message: "No se pudo identificar el formulario en la base de datos." };
   }
 
   const nowIso = new Date().toISOString();
@@ -794,6 +815,7 @@ async function submitSurveyResponse() {
   };
 
   const row = {
+    form_id: formId,
     form_slug: FORM_SLUG,
     user_id: user.id,
     email: user.email,
@@ -805,20 +827,22 @@ async function submitSurveyResponse() {
     user_agent: navigator.userAgent
   };
 
-const { error } = await sb
-  .from("form_responses")
-  .insert(row);
+  const { error } = await sb
+    .from("form_responses")
+    .insert(row);
 
-if (error) {
-  console.error("submitSurveyResponse error:", error);
-  const msg = String(error.message || "");
-  if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
-    return { ok: false, message: "Este email ya registró una respuesta." };
+  if (error) {
+    console.error("submitSurveyResponse error:", error);
+    const msg = String(error.message || "").toLowerCase();
+
+    if (msg.includes("duplicate") || msg.includes("unique")) {
+      return { ok: false, message: "Este email ya registró una respuesta." };
+    }
+
+    return { ok: false, message: error.message || "Error al guardar la encuesta." };
   }
-  return { ok: false, message: error.message || "Error al guardar la encuesta." };
-}
 
-return { ok: true };
+  return { ok: true };
 }
 
 function showFinish(){
