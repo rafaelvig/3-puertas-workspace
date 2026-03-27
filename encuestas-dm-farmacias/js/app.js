@@ -782,14 +782,15 @@ async function getFormId() {
     .from("forms")
     .select("id")
     .eq("slug", FORM_SLUG)
-    .single();
+    .limit(1);
 
-  if (error) {
-    console.error("getFormId error:", error);
-    return null;
-  }
+  console.log("getFormId data:", data);
+  console.log("getFormId error:", error);
 
-  return data?.id || null;
+  if (error) return null;
+  if (!data || data.length === 0) return null;
+
+  return data[0].id;
 }
 
 async function submitSurveyResponse() {
