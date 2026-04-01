@@ -112,6 +112,14 @@ async function loadWorkspace(blockId, subtopic) {
     return [];
   }
 
+  // 🔴 FIX CRÍTICO: asegurar sesión viva
+  const { data: sessionData } = await sb.auth.getSession();
+
+  if (!sessionData?.session) {
+    console.warn("No session activa, intentando refresh...");
+    await sb.auth.refreshSession();
+  }
+
   const query = sb
     .from("workspace_items")
     .select("*")
