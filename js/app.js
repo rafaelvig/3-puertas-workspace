@@ -100,6 +100,13 @@ function resetModuleDone(store, blockId, subKey) {
    Supabase content
 ------------------------ */
 async function loadWorkspace(blockId, subtopic) {
+
+
+  if (!state.companyId || !state.channelId) {
+    console.warn("loadWorkspace sin companyId/channelId", { blockId, subtopic, state });
+    return [];
+  }
+
   const { data, error } = await sb
     .from("workspace_items")
     .select("*")
@@ -809,58 +816,69 @@ async function renderAccordion(block) {
 
   const htmlParts = await Promise.all(
     subs.map(async (sub) => {
-      const subKey = sub.id;
-      const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
+      try {
+        const subKey = sub.id;
+        const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
 
-     const localNode = ensureSubNode(store, block.id, subKey);
-const remoteItems = await loadWorkspace(block.id, subKey);
-const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
+        const localNode = ensureSubNode(store, block.id, subKey);
+        const remoteItems = await loadWorkspace(block.id, subKey);
+        const node = buildNodeFromWorkspaceItems(remoteItems, localNode);
 
-const statusRecord = getModuleStatusRecord(block.id, subKey);
-node.done = statusRecord?.status === "done";
-node.reviewedAt = statusRecord?.reviewed_at || null;
+        const statusRecord = getModuleStatusRecord(block.id, subKey);
+        node.done = statusRecord?.status === "done";
+        node.reviewedAt = statusRecord?.reviewed_at || null;
 
-const cnt = countItems(node);
-const status = getSubStatus(node);
+        const cnt = countItems(node);
+        const status = getSubStatus(node);
 
-      return `
-        <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
-          <button class="acc-header" type="button">
-            <span class="acc-title">${escapeHtml(subLabel)}</span>
-            <span class="acc-count">${cnt}</span>
-          </button>
+        return `
+          <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
+            <button class="acc-header" type="button">
+              <span class="acc-title">${escapeHtml(subLabel)}</span>
+              <span class="acc-count">${cnt}</span>
+            </button>
 
-          <div class="acc-body">
-            <div class="row-actions">
-              ${renderModuleControls(block.id, subKey, node)}
-              <button class="btn btn-doc" type="button" data-action="upload">Subir documento</button>
-              <button class="btn btn-theory" type="button" data-action="upload-theory">Subir material teórico</button>
-              <button class="btn" type="button" data-action="link">Agregar link</button>
-              <button class="btn" type="button" data-action="note-open">Agregar nota</button>
-              ${renderSurveyButton(block, sub.id)}
-            </div>
+            <div class="acc-body">
+              <div class="row-actions">
+                ${renderModuleControls(block.id, subKey, node)}
+                <button class="btn btn-doc" type="button" data-action="upload">Subir documento</button>
+                <button class="btn btn-theory" type="button" data-action="upload-theory">Subir material teórico</button>
+                <button class="btn" type="button" data-action="link">Agregar link</button>
+                <button class="btn" type="button" data-action="note-open">Agregar nota</button>
+                ${renderSurveyButton(block, sub.id)}
+              </div>
 
-            <input class="file-input" type="file" style="display:none" />
+              <input class="file-input" type="file" style="display:none" />
 
-            <div class="note-compose" style="display:none; margin-top:10px;">
-              <textarea
-                class="note-new-text"
-                rows="4"
-                style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;"
-                placeholder="Escribí una nota..."
-              ></textarea>
-              <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
-                <button class="btn" type="button" data-action="note-save-new">Guardar</button>
-                <button class="btn" type="button" data-action="note-cancel-new">Cancelar</button>
+              <div class="note-compose" style="display:none; margin-top:10px;">
+                <textarea
+                  class="note-new-text"
+                  rows="4"
+                  style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:inherit; padding:10px; resize:vertical;"
+                  placeholder="Escribí una nota..."
+                ></textarea>
+                <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                  <button class="btn" type="button" data-action="note-save-new">Guardar</button>
+                  <button class="btn" type="button" data-action="note-cancel-new">Cancelar</button>
+                </div>
+              </div>
+
+              <div class="mini" style="margin-top:10px;">
+                ${renderMiniList(node)}
               </div>
             </div>
-
-            <div class="mini" style="margin-top:10px;">
-              ${renderMiniList(node)}
+          </div>
+        `;
+      } catch (err) {
+        console.error("renderAccordion error:", block.id, sub.id, err);
+        return `
+          <div class="acc-item is-open">
+            <div class="acc-body" style="display:block;">
+              <div class="mini">Error en este módulo</div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+      }
     })
   );
 
