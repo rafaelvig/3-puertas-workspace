@@ -100,14 +100,19 @@ function resetModuleDone(store, blockId, subKey) {
    Supabase content
 ------------------------ */
 async function loadWorkspace(blockId, subtopic) {
-  console.log("loadWorkspace START", { blockId, subtopic, companyId: state.companyId, channelId: state.channelId });
+  console.log("loadWorkspace START", {
+    blockId,
+    subtopic,
+    companyId: state.companyId,
+    channelId: state.channelId
+  });
 
   if (!state.companyId || !state.channelId) {
     console.warn("loadWorkspace sin companyId/channelId", { blockId, subtopic, state });
     return [];
   }
 
-  const { data, error } = await sb
+  const query = sb
     .from("workspace_items")
     .select("*")
     .eq("company_id", state.companyId)
@@ -116,14 +121,33 @@ async function loadWorkspace(blockId, subtopic) {
     .eq("subtopic", subtopic)
     .order("created_at", { ascending: false });
 
-  console.log("loadWorkspace END", { blockId, subtopic, rows: data?.length || 0, error });
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Supabase timeout")), 8000)
+  );
 
-  if (error) {
-    console.error("loadWorkspace error:", error);
+  try {
+    const res = await Promise.race([query, timeout]);
+
+    const data = res?.data || [];
+    const error = res?.error || null;
+
+    console.log("loadWorkspace END", {
+      blockId,
+      subtopic,
+      rows: data.length,
+      error
+    });
+
+    if (error) {
+      console.error("loadWorkspace error:", error);
+      return [];
+    }
+
+    return data;
+  } catch (e) {
+    console.error("loadWorkspace TIMEOUT", { blockId, subtopic, error: e.message });
     return [];
   }
-
-  return data || [];
 }
 
 async function saveNote(blockId, subtopic, text) {
