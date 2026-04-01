@@ -100,7 +100,7 @@ function resetModuleDone(store, blockId, subKey) {
    Supabase content
 ------------------------ */
 async function loadWorkspace(blockId, subtopic) {
-
+  console.log("loadWorkspace START", { blockId, subtopic, companyId: state.companyId, channelId: state.channelId });
 
   if (!state.companyId || !state.channelId) {
     console.warn("loadWorkspace sin companyId/channelId", { blockId, subtopic, state });
@@ -115,6 +115,8 @@ async function loadWorkspace(blockId, subtopic) {
     .eq("block_id", blockId)
     .eq("subtopic", subtopic)
     .order("created_at", { ascending: false });
+
+  console.log("loadWorkspace END", { blockId, subtopic, rows: data?.length || 0, error });
 
   if (error) {
     console.error("loadWorkspace error:", error);
@@ -719,7 +721,9 @@ async function openDrawer(blockId) {
   `;
 
   try {
+    console.log("openDrawer before renderAccordion", block.id);
     const accordionHtml = await renderAccordion(block);
+    console.log("openDrawer after renderAccordion", block.id, accordionHtml?.length);
 
     panel.innerHTML = `
       <div class="detail-head">
@@ -746,7 +750,6 @@ async function openDrawer(blockId) {
     `;
   }
 }
-
 function closeDrawer() {
   state.openBlockId = null;
 
@@ -799,10 +802,13 @@ function renderSurveyButton(block, subId) {
 }
 
 async function renderAccordion(block) {
+  console.log("renderAccordion START", block.id);
+
   const store = loadStore();
   const subs = block.subs || [];
 
   if (subs.length === 0) {
+    console.log("renderAccordion sin subs", block.id);
     return `
       <div class="accordion">
         <div class="acc-item is-open">
@@ -817,6 +823,8 @@ async function renderAccordion(block) {
   const htmlParts = await Promise.all(
     subs.map(async (sub) => {
       try {
+        console.log("renderAccordion SUB START", block.id, sub.id);
+
         const subKey = sub.id;
         const subLabel = sub.id ? `${sub.id}) ${sub.name}` : sub.name;
 
@@ -830,6 +838,8 @@ async function renderAccordion(block) {
 
         const cnt = countItems(node);
         const status = getSubStatus(node);
+
+        console.log("renderAccordion SUB END", block.id, sub.id);
 
         return `
           <div class="acc-item module-${status}" data-sub="${escapeAttr(subKey)}" data-block="${escapeAttr(block.id)}">
@@ -881,6 +891,8 @@ async function renderAccordion(block) {
       }
     })
   );
+
+  console.log("renderAccordion END", block.id);
 
   return `<div class="accordion">${htmlParts.join("")}</div>`;
 }
